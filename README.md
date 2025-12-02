@@ -124,10 +124,11 @@ uv run arc-bids validate data/openneuro/ds004884
 
 This checks:
 
-- Required BIDS files exist (dataset_description.json, participants.tsv)
-- Subject count matches expected (~230 from Sci Data paper)
-- Series counts match paper (T1w: 441, T2w: 447, FLAIR: 235)
-- Sample NIfTI files are loadable with nibabel
+- Required BIDS files exist (dataset_description.json, participants.tsv, participants.json)
+- Subject count matches expected (~230 ±5 from Sci Data paper)
+- participants.tsv row count matches subject directories
+- Series counts match paper (T1w: 441, T2w: 447, FLAIR: 235, lesion masks: 230)
+- Sample NIfTI files are loadable with nibabel (random sample, spot-check)
 
 For optional BIDS validator integration (slower but more thorough):
 
