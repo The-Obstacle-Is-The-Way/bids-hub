@@ -38,12 +38,14 @@ Modules:
     core: Generic BIDS → HF Dataset conversion utilities
     config: ARC dataset configuration
     arc: ARC-specific file table builder and features
+    validation: Data integrity validation
     cli: Command-line interface
 """
 
 from .arc import build_arc_file_table, get_arc_features
 from .config import ARC_CONFIG, BidsDatasetConfig
 from .core import DatasetBuilderConfig, build_hf_dataset, push_dataset_to_hub
+from .validation import ValidationResult, validate_arc_download
 
 __version__ = "0.1.0"
 
@@ -60,4 +62,7 @@ __all__ = [
     # ARC
     "build_arc_file_table",
     "get_arc_features",
+    # Validation
+    "validate_arc_download",
+    "ValidationResult",
 ]
