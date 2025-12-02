@@ -156,7 +156,7 @@ def build_hf_dataset(
 def push_dataset_to_hub(
     ds: Dataset,
     config: DatasetBuilderConfig,
-    embed_external_files: bool = False,
+    embed_external_files: bool = True,
     **push_kwargs: Any,
 ) -> None:
     """
@@ -165,33 +165,23 @@ def push_dataset_to_hub(
     Assumes the user has already authenticated via `huggingface-cli login`
     or has set the HF_TOKEN environment variable.
 
-    IMPORTANT: For NIfTI datasets, embed_external_files defaults to False to prevent
-    embedding large medical imaging files directly into Parquet. This keeps Parquet
-    files small and allows lazy loading from the original file paths.
+    IMPORTANT: For NIfTI datasets, embed_external_files MUST be True (default) to
+    actually upload the NIfTI file contents to the Hub. Setting to False only uploads
+    metadata with local file paths, resulting in a broken dataset that others cannot use.
 
     Args:
         ds: The Hugging Face Dataset to push.
         config: Configuration containing the target repo ID.
-        embed_external_files: If False (default), NIfTI files are stored as paths
-            in Parquet rather than embedded as bytes. Set to True only for small
-            datasets where embedding is acceptable.
+        embed_external_files: If True (default), NIfTI file contents are embedded
+            into Parquet shards and uploaded to Hub. Required for datasets to be
+            usable by others. Only set to False for local-only testing.
         **push_kwargs: Additional keyword arguments passed to `ds.push_to_hub()`.
-
-    Raises:
-        TypeError: If embed_external_files is passed in both the explicit
-            parameter and in push_kwargs.
 
     Example:
         ```python
         push_dataset_to_hub(ds, config, private=True)
         ```
     """
-    if "embed_external_files" in push_kwargs:
-        raise TypeError(
-            "Pass 'embed_external_files' via the explicit parameter on "
-            "`push_dataset_to_hub`, not in **push_kwargs."
-        )
-
     ds.push_to_hub(
         config.hf_repo_id,
         embed_external_files=embed_external_files,

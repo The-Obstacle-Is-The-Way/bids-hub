@@ -54,6 +54,7 @@ HF Hub (via XET storage)
 |--------|---------|
 | `src/arc_bids/core.py` | Generic BIDS→HF Dataset conversion |
 | `src/arc_bids/arc.py` | ARC dataset builder (file table + HF features) |
+| `src/arc_bids/validation.py` | Download integrity validation |
 | `src/arc_bids/cli.py` | Typer CLI |
 | `scripts/download_arc.sh` | Download ARC from OpenNeuro |
 
@@ -78,6 +79,9 @@ uv run arc-bids info
 
 # Download ARC dataset
 ./scripts/download_arc.sh
+
+# Validate download integrity
+uv run arc-bids validate data/openneuro/ds004884
 
 # Build dataset (dry run):
 uv run arc-bids build data/openneuro/ds004884 --dry-run
@@ -110,6 +114,27 @@ openneuro login  # requires API key
 openneuro download ds004884 data/openneuro/ds004884
 ```
 
+## Validating Downloads
+
+Before pushing to HuggingFace, validate your download to ensure data integrity:
+
+```bash
+uv run arc-bids validate data/openneuro/ds004884
+```
+
+This checks:
+
+- Required BIDS files exist (dataset_description.json, participants.tsv)
+- Subject count matches expected (~230 from Sci Data paper)
+- Series counts match paper (T1w: 441, T2w: 447, FLAIR: 235)
+- Sample NIfTI files are loadable with nibabel
+
+For optional BIDS validator integration (slower but more thorough):
+
+```bash
+uv run arc-bids validate data/openneuro/ds004884 --bids-validator
+```
+
 ## Project Structure
 
 ```text
@@ -119,13 +144,16 @@ arc-aphasia-bids/
 │   ├── core.py          # Generic BIDS→HF logic
 │   ├── config.py        # ARC configuration
 │   ├── arc.py           # ARC dataset builder
+│   ├── validation.py    # Download integrity checks
 │   └── cli.py           # Typer CLI
 ├── scripts/
-│   └── download_arc.sh  # Download script
+│   ├── download_arc.sh  # Download script
+│   └── validate_download.py  # Standalone validation
 ├── tests/
 │   ├── test_arc.py          # ARC module tests
 │   ├── test_core_nifti.py   # Core functionality tests
-│   └── test_cli_skeleton.py # CLI tests
+│   ├── test_cli_skeleton.py # CLI tests
+│   └── test_validation.py   # Validation tests
 ├── data/                # (gitignored) Local data
 │   └── openneuro/ds004884/
 ├── pyproject.toml       # PEP 621 project config

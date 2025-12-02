@@ -18,6 +18,7 @@ from datasets import Dataset, Features, Nifti, Value
 from arc_bids.core import (
     DatasetBuilderConfig,
     build_hf_dataset,
+    push_dataset_to_hub,
     validate_file_table_columns,
 )
 
@@ -284,3 +285,71 @@ class TestDatasetBuilderConfig:
 
         assert config.split == "train"
         assert config.dry_run is True
+
+
+class TestPushDatasetToHub:
+    """Tests for push_dataset_to_hub function."""
+
+    def test_push_dataset_to_hub_default_embeds_files(self) -> None:
+        """Ensure embed_external_files defaults to True."""
+        from unittest.mock import Mock, patch
+
+        config = DatasetBuilderConfig(
+            bids_root=Path("/fake/path"),
+            hf_repo_id="test/arc-aphasia",
+        )
+
+        mock_ds = Mock()
+        with patch.object(mock_ds, "push_to_hub") as mock_push:
+            push_dataset_to_hub(mock_ds, config)
+            mock_push.assert_called_once()
+            # Verify embed_external_files=True was passed
+            assert mock_push.call_args[1]["embed_external_files"] is True
+
+    def test_push_dataset_to_hub_passes_repo_id(self) -> None:
+        """Ensure the correct repo ID is passed to push_to_hub."""
+        from unittest.mock import Mock, patch
+
+        config = DatasetBuilderConfig(
+            bids_root=Path("/fake/path"),
+            hf_repo_id="hugging-science/arc-aphasia-bids",
+        )
+
+        mock_ds = Mock()
+        with patch.object(mock_ds, "push_to_hub") as mock_push:
+            push_dataset_to_hub(mock_ds, config)
+            mock_push.assert_called_once()
+            # First positional arg should be the repo ID
+            assert mock_push.call_args[0][0] == "hugging-science/arc-aphasia-bids"
+
+    def test_push_dataset_to_hub_explicit_false_allowed(self) -> None:
+        """Ensure explicitly passing embed_external_files=False is allowed."""
+        from unittest.mock import Mock, patch
+
+        config = DatasetBuilderConfig(
+            bids_root=Path("/fake/path"),
+            hf_repo_id="test/arc-aphasia",
+        )
+
+        mock_ds = Mock()
+        with patch.object(mock_ds, "push_to_hub") as mock_push:
+            # Explicitly passing False is allowed (for local-only testing)
+            push_dataset_to_hub(mock_ds, config, embed_external_files=False)
+            mock_push.assert_called_once()
+            assert mock_push.call_args[1]["embed_external_files"] is False
+
+    def test_push_dataset_to_hub_passes_extra_kwargs(self) -> None:
+        """Ensure additional kwargs are passed through to push_to_hub."""
+        from unittest.mock import Mock, patch
+
+        config = DatasetBuilderConfig(
+            bids_root=Path("/fake/path"),
+            hf_repo_id="test/arc-aphasia",
+        )
+
+        mock_ds = Mock()
+        with patch.object(mock_ds, "push_to_hub") as mock_push:
+            push_dataset_to_hub(mock_ds, config, private=True, commit_message="test")
+            mock_push.assert_called_once()
+            assert mock_push.call_args[1]["private"] is True
+            assert mock_push.call_args[1]["commit_message"] == "test"
