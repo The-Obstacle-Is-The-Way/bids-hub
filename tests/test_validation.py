@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Generator
 from pathlib import Path
 
 import pytest
@@ -15,7 +14,7 @@ from arc_bids.validation import (
 
 
 @pytest.fixture
-def mock_bids_root(tmp_path: Path) -> Generator[Path, None, None]:
+def mock_bids_root(tmp_path: Path) -> Path:
     """Create a minimal mock BIDS structure for testing."""
     bids_root = tmp_path / "ds004884"
     bids_root.mkdir()
@@ -34,7 +33,7 @@ def mock_bids_root(tmp_path: Path) -> Generator[Path, None, None]:
         # Create empty file (nibabel won't load, but glob will find)
         (sub_dir / f"{sub}_ses-01_T1w.nii.gz").touch()
 
-    yield bids_root
+    return bids_root
 
 
 def test_validation_check_creation() -> None:

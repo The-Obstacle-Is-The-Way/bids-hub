@@ -17,7 +17,7 @@ from pathlib import Path
 # Add src to path for standalone execution
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from arc_bids.validation import validate_arc_download  # noqa: E402
+from arc_bids.validation import validate_arc_download
 
 
 def main() -> int:

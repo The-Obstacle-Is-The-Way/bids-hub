@@ -158,7 +158,7 @@ def _check_participants_tsv(bids_root: Path) -> ValidationCheck:
             passed=False,
         )
 
-    with open(participants_tsv) as f:
+    with open(participants_tsv, encoding="utf-8") as f:
         row_count = sum(1 for _ in f) - 1  # Subtract header
 
     # participants.tsv may have more entries than subjects with imaging
@@ -199,6 +199,7 @@ def _check_nifti_integrity(
     """Spot-check NIfTI files for corruption using nibabel."""
     try:
         import nibabel as nib
+        from nibabel.filebasedimages import ImageFileError
     except ImportError:
         return ValidationCheck(
             name="nifti_integrity",
@@ -229,7 +230,8 @@ def _check_nifti_integrity(
             actual=f"{len(sample)}/{len(sample)} passed",
             passed=True,
         )
-    except Exception as e:
+    except (OSError, ValueError, EOFError, ImageFileError) as e:
+        # Catches file errors, gzip corruption, nibabel parsing/file errors
         return ValidationCheck(
             name="nifti_integrity",
             expected="loadable",
@@ -276,7 +278,8 @@ def _check_bids_validator(bids_root: Path) -> ValidationCheck | None:
             passed=True,  # Don't fail on timeout
             details="Skipped due to timeout on large dataset",
         )
-    except Exception as e:
+    except (subprocess.SubprocessError, OSError) as e:
+        # Catches subprocess failures and OS-level errors (permissions, etc.)
         return ValidationCheck(
             name="bids_validator",
             expected="valid BIDS",

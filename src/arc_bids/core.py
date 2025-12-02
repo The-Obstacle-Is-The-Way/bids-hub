@@ -177,21 +177,11 @@ def push_dataset_to_hub(
             usable by others. Only set to False for local-only testing.
         **push_kwargs: Additional keyword arguments passed to `ds.push_to_hub()`.
 
-    Raises:
-        TypeError: If embed_external_files is passed in both the explicit
-            parameter and in push_kwargs.
-
     Example:
         ```python
         push_dataset_to_hub(ds, config, private=True)
         ```
     """
-    if "embed_external_files" in push_kwargs:
-        raise TypeError(
-            "Pass 'embed_external_files' via the explicit parameter on "
-            "`push_dataset_to_hub`, not in **push_kwargs."
-        )
-
     ds.push_to_hub(
         config.hf_repo_id,
         embed_external_files=embed_external_files,
