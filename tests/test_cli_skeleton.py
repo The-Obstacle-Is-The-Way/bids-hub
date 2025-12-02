@@ -1,5 +1,5 @@
 """
-Tests for the CLI skeleton.
+Tests for the CLI.
 
 These tests verify that the CLI is properly wired up and commands are registered,
 without actually running the full dataset processing pipelines.
@@ -9,7 +9,7 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
-from hf_bids_nifti.cli import app
+from arc_bids.cli import app
 
 runner = CliRunner()
 
@@ -22,38 +22,35 @@ class TestCliHelp:
         result = runner.invoke(app, ["--help"])
 
         assert result.exit_code == 0
-        assert "BIDS" in result.stdout or "bids" in result.stdout.lower()
-        assert "arc" in result.stdout
-        assert "soop" in result.stdout
+        assert "ARC" in result.stdout or "arc" in result.stdout.lower()
+        assert "build" in result.stdout
+        assert "info" in result.stdout
 
-    def test_arc_help(self) -> None:
-        """Test that arc --help works."""
-        result = runner.invoke(app, ["arc", "--help"])
+    def test_build_help(self) -> None:
+        """Test that build --help works."""
+        result = runner.invoke(app, ["build", "--help"])
 
         assert result.exit_code == 0
         assert "ARC" in result.stdout or "arc" in result.stdout.lower()
         assert "--hf-repo" in result.stdout
         assert "--dry-run" in result.stdout
 
-    def test_soop_help(self) -> None:
-        """Test that soop --help works."""
-        result = runner.invoke(app, ["soop", "--help"])
+    def test_info_help(self) -> None:
+        """Test that info --help works."""
+        result = runner.invoke(app, ["info", "--help"])
 
         assert result.exit_code == 0
-        assert "SOOP" in result.stdout or "soop" in result.stdout.lower()
-        assert "--hf-repo" in result.stdout
-        assert "--dry-run" in result.stdout
 
 
 class TestCliCommands:
     """Tests for CLI command execution."""
 
-    def test_arc_raises_not_implemented(self, tmp_path: Path) -> None:
-        """Test that arc command raises NotImplementedError (expected for stub)."""
+    def test_build_raises_not_implemented(self, tmp_path: Path) -> None:
+        """Test that build command raises NotImplementedError (expected for stub)."""
         result = runner.invoke(
             app,
             [
-                "arc",
+                "build",
                 str(tmp_path),
                 "--hf-repo",
                 "test/test-repo",
@@ -67,44 +64,12 @@ class TestCliCommands:
         assert isinstance(result.exception, NotImplementedError)
         assert "not implemented" in str(result.exception).lower()
 
-    def test_soop_raises_not_implemented(self, tmp_path: Path) -> None:
-        """Test that soop command raises NotImplementedError (expected for stub)."""
+    def test_build_missing_bids_root_fails(self) -> None:
+        """Test that build command fails when bids_root is not provided."""
         result = runner.invoke(
             app,
             [
-                "soop",
-                str(tmp_path),
-                "--hf-repo",
-                "test/test-repo",
-                "--dry-run",
-            ],
-        )
-
-        # Should fail because build_soop_file_table raises NotImplementedError
-        assert result.exit_code != 0
-        # Exception is captured in result.exception, not stdout
-        assert isinstance(result.exception, NotImplementedError)
-        assert "not implemented" in str(result.exception).lower()
-
-    def test_arc_missing_hf_repo_fails(self, tmp_path: Path) -> None:
-        """Test that arc command fails when --hf-repo is not provided."""
-        result = runner.invoke(
-            app,
-            [
-                "arc",
-                str(tmp_path),
-                # Missing --hf-repo
-            ],
-        )
-
-        assert result.exit_code != 0
-
-    def test_soop_missing_bids_root_fails(self) -> None:
-        """Test that soop command fails when bids_root is not provided."""
-        result = runner.invoke(
-            app,
-            [
-                "soop",
+                "build",
                 # Missing bids_root argument
                 "--hf-repo",
                 "test/test-repo",
@@ -113,16 +78,25 @@ class TestCliCommands:
 
         assert result.exit_code != 0
 
+    def test_info_command_works(self) -> None:
+        """Test that info command executes successfully."""
+        result = runner.invoke(app, ["info"])
+
+        assert result.exit_code == 0
+        assert "Aphasia Recovery Cohort" in result.stdout
+        assert "ds004884" in result.stdout
+        assert "CC0" in result.stdout
+
 
 class TestCliOutput:
     """Tests for CLI output messages."""
 
-    def test_arc_shows_processing_message(self, tmp_path: Path) -> None:
-        """Test that arc shows processing message before failing."""
+    def test_build_shows_processing_message(self, tmp_path: Path) -> None:
+        """Test that build shows processing message before failing."""
         result = runner.invoke(
             app,
             [
-                "arc",
+                "build",
                 str(tmp_path),
                 "--hf-repo",
                 "test/test-repo",
@@ -132,19 +106,3 @@ class TestCliOutput:
 
         # Should show processing message even if it fails later
         assert "Processing ARC" in result.stdout or "ARC" in result.stdout
-
-    def test_soop_shows_processing_message(self, tmp_path: Path) -> None:
-        """Test that soop shows processing message before failing."""
-        result = runner.invoke(
-            app,
-            [
-                "soop",
-                str(tmp_path),
-                "--hf-repo",
-                "test/test-repo",
-                "--dry-run",
-            ],
-        )
-
-        # Should show processing message even if it fails later
-        assert "Processing SOOP" in result.stdout or "SOOP" in result.stdout

@@ -15,7 +15,7 @@ import pandas as pd
 import pytest
 from datasets import Dataset, Features, Nifti, Value
 
-from hf_bids_nifti.core import (
+from arc_bids.core import (
     DatasetBuilderConfig,
     build_hf_dataset,
     validate_file_table_columns,

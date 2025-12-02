@@ -1,6 +1,6 @@
-# arc-aphasia-bids
+# arc-bids
 
-Upload the **Aphasia Recovery Cohort (ARC)** dataset to Hugging Face Hub.
+Upload the **Aphasia Recovery Cohort (ARC)** dataset to HuggingFace Hub.
 
 > **Status**: Phase 0 (Setup & Exploration)
 > **Target HF Repo**: `the-obstacle-is-the-way/arc-aphasia-bids`
@@ -23,13 +23,11 @@ The [Aphasia Recovery Cohort (ARC)](https://openneuro.org/datasets/ds004884) is 
 
 Convert ARC from BIDS → HuggingFace Dataset that:
 1. Works with `datasets.load_dataset()`
-2. Uses HF's `Nifti()` feature type for lazy NIfTI loading
+2. Uses HF's `Nifti()` feature type for NIfTI loading
 3. Enables `push_to_hub()` workflow
 4. Renders in HF Hub viewer via NiiVue integration
 
 ## Architecture
-
-This repo was created from the [hf-bids-nifti-datasets](https://github.com/The-Obstacle-Is-The-Way/hf-bids-nifti-datasets) template.
 
 ### Data Flow
 
@@ -53,9 +51,9 @@ HF Hub (via XET storage)
 
 | Module | Purpose |
 |--------|---------|
-| `src/hf_bids_nifti/core.py` | Generic BIDS→HF Dataset conversion |
-| `src/hf_bids_nifti/arc.py` | ARC-specific builder (to implement) |
-| `src/hf_bids_nifti/cli.py` | Typer CLI |
+| `src/arc_bids/core.py` | Generic BIDS→HF Dataset conversion |
+| `src/arc_bids/arc.py` | ARC-specific builder (to implement) |
+| `src/arc_bids/cli.py` | Typer CLI |
 | `scripts/download_arc.sh` | Download ARC from OpenNeuro |
 
 ## Quickstart
@@ -71,13 +69,17 @@ uv sync --all-extras
 # Run tests
 uv run pytest
 
-# Download ARC dataset (choose S3 or subset)
+# See CLI help
+uv run arc-bids --help
+
+# Show dataset info
+uv run arc-bids info
+
+# Download ARC dataset
 ./scripts/download_arc.sh
 
-# Once implemented:
-uv run hf-bids-nifti arc data/openneuro/ds004884 \
-  --hf-repo the-obstacle-is-the-way/arc-aphasia-bids \
-  --dry-run
+# Build dataset (once implemented):
+uv run arc-bids build data/openneuro/ds004884 --dry-run
 ```
 
 ## Downloading ARC
@@ -111,80 +113,21 @@ openneuro download ds004884 data/openneuro/ds004884
 
 ```
 arc-aphasia-bids/
-├── src/hf_bids_nifti/
+├── src/arc_bids/
+│   ├── __init__.py      # Package exports
 │   ├── core.py          # Generic BIDS→HF logic
+│   ├── config.py        # ARC configuration
 │   ├── arc.py           # ARC builder (STUB - to implement)
-│   └── cli.py           # CLI
+│   └── cli.py           # Typer CLI
 ├── scripts/
 │   └── download_arc.sh  # Download script
-├── tests/               # pytest tests
-├── data/                # (gitignored) Local data
-│   └── openneuro/ds004884/
-├── docs/                # Documentation
-└── pyproject.toml
-```
-
-## Overview
-
-This repository provides a **reusable template** for:
-
-```
-BIDS dataset on disk → Pandas table of NIfTI file paths + metadata → HF Dataset with Nifti features → optional push_to_hub()
-```
-
-**Key points:**
-
-- **No real data in this repo** - Only code and scaffolding
-- Data will be mirrored from OpenNeuro directly to Hugging Face datasets
-- Respects CC0 licensing from source datasets
-- Designed for TDD with fake-data tests
-
-### Target Datasets
-
-| Dataset | OpenNeuro ID | Description |
-|---------|--------------|-------------|
-| ARC | [ds004884](https://openneuro.org/datasets/ds004884) | Aphasia Recovery Cohort - structural MRI & lesion masks |
-| SOOP | [ds004889](https://openneuro.org/datasets/ds004889) | Study of Outcomes in aPhagia - longitudinal stroke recovery |
-
-## Quickstart
-
-```bash
-# Clone
-git clone https://github.com/The-Obstacle-Is-The-Way/hf-bids-nifti-datasets.git
-cd hf-bids-nifti-datasets
-
-# Install dependencies (requires uv: https://docs.astral.sh/uv/)
-uv sync
-
-# Run tests
-uv run pytest
-
-# See CLI help
-uv run hf-bids-nifti --help
-```
-
-> **Note:** ARC and SOOP commands are templates that will raise `NotImplementedError` until their file-table builders are implemented.
-
-## Project Structure
-
-```
-hf-bids-nifti-datasets/
-├── src/
-│   └── hf_bids_nifti/
-│       ├── __init__.py      # Package exports
-│       ├── core.py          # Generic BIDS→HF Dataset logic
-│       ├── config.py        # Dataset configuration objects
-│       ├── arc.py           # ARC-specific STUB
-│       ├── soop.py          # SOOP-specific STUB
-│       └── cli.py           # Typer CLI
 ├── tests/
 │   ├── test_core_nifti.py   # Core functionality tests
 │   └── test_cli_skeleton.py # CLI tests
-├── pyproject.toml           # PEP 621 project config
-├── uv.lock                  # Reproducible dependencies
-├── Makefile                 # Dev workflow automation
-├── .pre-commit-config.yaml  # Pre-commit hooks
-├── mypy.ini                 # Type checking config
+├── data/                # (gitignored) Local data
+│   └── openneuro/ds004884/
+├── pyproject.toml       # PEP 621 project config
+├── mypy.ini             # Strict typing config
 └── README.md
 ```
 
@@ -197,7 +140,7 @@ from pathlib import Path
 import pandas as pd
 from datasets import Features, Nifti, Value
 
-from hf_bids_nifti.core import DatasetBuilderConfig, build_hf_dataset
+from arc_bids.core import DatasetBuilderConfig, build_hf_dataset
 
 # Create a file table with paths to NIfTI files
 file_table = pd.DataFrame({
@@ -216,7 +159,7 @@ features = Features({
 # Build the dataset
 config = DatasetBuilderConfig(
     bids_root=Path("/path/to/bids"),
-    hf_repo_id="your-username/your-dataset",
+    hf_repo_id="the-obstacle-is-the-way/arc-aphasia-bids",
     dry_run=True,
 )
 ds = build_hf_dataset(config, file_table, features)
@@ -226,14 +169,17 @@ img = ds[0]["t1w"]  # Returns nibabel.Nifti1Image
 data = img.get_fdata()  # Convert to numpy array
 ```
 
-### CLI (Templates)
+### CLI
 
 ```bash
-# ARC dataset (template - will raise NotImplementedError)
-uv run hf-bids-nifti arc /path/to/ds004884 --hf-repo user/arc-demo --dry-run
+# Show dataset info
+uv run arc-bids info
 
-# SOOP dataset (template - will raise NotImplementedError)
-uv run hf-bids-nifti soop /path/to/ds004889 --hf-repo user/soop-demo --dry-run
+# Build dataset (dry run - won't push to Hub)
+uv run arc-bids build data/openneuro/ds004884 --dry-run
+
+# Build and push to Hub
+uv run arc-bids build data/openneuro/ds004884 --no-dry-run
 ```
 
 ## Development
@@ -247,67 +193,28 @@ uv run hf-bids-nifti soop /path/to/ds004889 --hf-repo user/soop-demo --dry-run
 
 ```bash
 # Install all dependencies (including dev)
-uv sync
+uv sync --all-extras
 
 # Install pre-commit hooks
 uv run pre-commit install
 ```
 
-### Common Commands
+### Quality Checks
 
 ```bash
 # Run tests
-make test
-
-# Run tests with coverage
-make test-cov
+uv run pytest
 
 # Lint code
-make lint
+uv run ruff check .
 
-# Format code
-make format
-
-# Type check
-make typecheck
-
-# Run all pre-commit hooks
-make pre-commit
-```
-
-### Adding a New Dataset
-
-1. Create a new module (e.g., `src/hf_bids_nifti/mydataset.py`)
-2. Implement `build_mydataset_file_table(bids_root: Path) -> pd.DataFrame`
-3. Define `get_mydataset_features() -> Features`
-4. Create `build_and_push_mydataset(config: DatasetBuilderConfig)`
-5. Add CLI command in `cli.py`
-6. Add tests in `tests/test_mydataset.py`
-
-## Architecture
-
-### Core Concepts
-
-- **`DatasetBuilderConfig`**: Configuration dataclass holding BIDS root path, HF repo ID, and options
-- **`build_hf_dataset()`**: Generic function that converts a pandas DataFrame with NIfTI paths to an HF Dataset
-- **`Features` with `Nifti()`**: HF schema that enables automatic NIfTI loading via nibabel
-
-### Workflow
-
-```
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│  BIDS Directory │────▶│  File Table (df) │────▶│  HF Dataset     │
-│  (on disk)      │     │  paths + metadata│     │  Nifti + Values │
-└─────────────────┘     └──────────────────┘     └─────────────────┘
-        │                        │                        │
-        │                        │                        │
-   walk directory         pandas DataFrame          ds.push_to_hub()
-   extract metadata       with NIfTI paths          to HF Hub
+# Type check (strict everywhere)
+uv run mypy src tests
 ```
 
 ## References
 
-- [HuggingFace Datasets - NIfTI](https://huggingface.co/docs/datasets/en/nifti_dataset)
+- [HuggingFace Datasets - NIfTI](https://huggingface.co/docs/datasets/nifti_dataset)
 - [BIDS Specification](https://bids-specification.readthedocs.io/)
 - [OpenNeuro](https://openneuro.org/)
 - [nibabel Documentation](https://nipy.org/nibabel/)
@@ -316,4 +223,4 @@ make pre-commit
 
 Apache-2.0
 
-The source datasets (ARC, SOOP) are released under CC0 (Public Domain) on OpenNeuro.
+The ARC dataset is released under CC0 (Public Domain) on OpenNeuro.
