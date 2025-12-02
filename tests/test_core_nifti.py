@@ -6,6 +6,7 @@ without requiring real NIfTI files or BIDS datasets.
 """
 
 import tempfile
+from collections.abc import Generator
 from pathlib import Path
 
 import nibabel as nib
@@ -14,7 +15,7 @@ import pandas as pd
 import pytest
 from datasets import Dataset, Features, Nifti, Value
 
-from hf_bids_nifti.core import (
+from arc_bids.core import (
     DatasetBuilderConfig,
     build_hf_dataset,
     validate_file_table_columns,
@@ -44,7 +45,7 @@ def simple_features() -> Features:
 
 
 @pytest.fixture
-def temp_nifti_dir():
+def temp_nifti_dir() -> Generator[Path, None, None]:
     """Create a temporary directory with fake NIfTI files."""
     with tempfile.TemporaryDirectory() as tmpdir:
         tmppath = Path(tmpdir)

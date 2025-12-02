@@ -14,7 +14,7 @@ The typical workflow for a specific BIDS dataset (e.g., ARC, SOOP) is:
 
 Example usage:
     ```python
-    from hf_bids_nifti.core import DatasetBuilderConfig, build_hf_dataset
+    from arc_bids.core import DatasetBuilderConfig, build_hf_dataset
     from datasets import Features, Nifti, Value
 
     # Your file table with paths to NIfTI files
@@ -156,6 +156,7 @@ def build_hf_dataset(
 def push_dataset_to_hub(
     ds: Dataset,
     config: DatasetBuilderConfig,
+    embed_external_files: bool = False,
     **push_kwargs: Any,
 ) -> None:
     """
@@ -164,14 +165,35 @@ def push_dataset_to_hub(
     Assumes the user has already authenticated via `huggingface-cli login`
     or has set the HF_TOKEN environment variable.
 
+    IMPORTANT: For NIfTI datasets, embed_external_files defaults to False to prevent
+    embedding large medical imaging files directly into Parquet. This keeps Parquet
+    files small and allows lazy loading from the original file paths.
+
     Args:
         ds: The Hugging Face Dataset to push.
         config: Configuration containing the target repo ID.
+        embed_external_files: If False (default), NIfTI files are stored as paths
+            in Parquet rather than embedded as bytes. Set to True only for small
+            datasets where embedding is acceptable.
         **push_kwargs: Additional keyword arguments passed to `ds.push_to_hub()`.
+
+    Raises:
+        TypeError: If embed_external_files is passed in both the explicit
+            parameter and in push_kwargs.
 
     Example:
         ```python
         push_dataset_to_hub(ds, config, private=True)
         ```
     """
-    ds.push_to_hub(config.hf_repo_id, **push_kwargs)
+    if "embed_external_files" in push_kwargs:
+        raise TypeError(
+            "Pass 'embed_external_files' via the explicit parameter on "
+            "`push_dataset_to_hub`, not in **push_kwargs."
+        )
+
+    ds.push_to_hub(
+        config.hf_repo_id,
+        embed_external_files=embed_external_files,
+        **push_kwargs,
+    )

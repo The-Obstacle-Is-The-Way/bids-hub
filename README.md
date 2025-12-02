@@ -1,68 +1,136 @@
-# hf-bids-nifti-datasets
+# arc-bids
 
-Template for converting BIDS neuroimaging datasets (e.g., ARC, SOOP) into Hugging Face Datasets with NIfTI + tabular features.
+Upload the **Aphasia Recovery Cohort (ARC)** dataset to HuggingFace Hub.
 
-## Overview
+> **Status**: Phase 0 (Setup & Exploration)
+> **Target HF Repo**: `the-obstacle-is-the-way/arc-aphasia-bids`
 
-This repository provides a **reusable template** for:
+## What is ARC?
 
+The [Aphasia Recovery Cohort (ARC)](https://openneuro.org/datasets/ds004884) is a BIDS-formatted neuroimaging dataset containing:
+
+- **230 chronic stroke patients** with aphasia
+- **902 scanning sessions** (longitudinal)
+- **Imaging**: T1w, T2w, FLAIR, diffusion, fMRI, resting-state (NIfTI)
+- **Annotations**: Expert-drawn lesion maps
+- **Tabular**: Demographics + WAB (Western Aphasia Battery) scores
+
+**Source**: [OpenNeuro ds004884](https://openneuro.org/datasets/ds004884/versions/1.0.1)
+**Paper**: [Scientific Data (2024)](https://www.nature.com/articles/s41597-024-03819-7)
+**License**: CC0 (Public Domain) - Redistribution OK
+
+## Goal
+
+Convert ARC from BIDS → HuggingFace Dataset that:
+
+1. Works with `datasets.load_dataset()`
+2. Uses HF's `Nifti()` feature type for NIfTI loading
+3. Enables `push_to_hub()` workflow
+4. Renders in HF Hub viewer via NiiVue integration
+
+## Architecture
+
+### Data Flow
+
+```text
+OpenNeuro ds004884 (BIDS)
+        │
+        ▼ AWS S3 or OpenNeuro CLI
+Local: data/openneuro/ds004884/  (gitignored)
+        │
+        ▼ Python walks BIDS tree
+pandas DataFrame (paths + metadata)
+        │
+        ▼ build_hf_dataset()
+datasets.Dataset with Nifti() features
+        │
+        ▼ push_to_hub()
+HF Hub (via XET storage)
 ```
-BIDS dataset on disk → Pandas table of NIfTI file paths + metadata → HF Dataset with Nifti features → optional push_to_hub()
-```
 
-**Key points:**
+### Key Modules
 
-- **No real data in this repo** - Only code and scaffolding
-- Data will be mirrored from OpenNeuro directly to Hugging Face datasets
-- Respects CC0 licensing from source datasets
-- Designed for TDD with fake-data tests
-
-### Target Datasets
-
-| Dataset | OpenNeuro ID | Description |
-|---------|--------------|-------------|
-| ARC | [ds004884](https://openneuro.org/datasets/ds004884) | Aphasia Recovery Cohort - structural MRI & lesion masks |
-| SOOP | [ds004889](https://openneuro.org/datasets/ds004889) | Study of Outcomes in aPhagia - longitudinal stroke recovery |
+| Module | Purpose |
+|--------|---------|
+| `src/arc_bids/core.py` | Generic BIDS→HF Dataset conversion |
+| `src/arc_bids/arc.py` | ARC dataset builder (file table + HF features) |
+| `src/arc_bids/cli.py` | Typer CLI |
+| `scripts/download_arc.sh` | Download ARC from OpenNeuro |
 
 ## Quickstart
 
 ```bash
 # Clone
-git clone https://github.com/The-Obstacle-Is-The-Way/hf-bids-nifti-datasets.git
-cd hf-bids-nifti-datasets
+git clone https://github.com/The-Obstacle-Is-The-Way/arc-aphasia-bids.git
+cd arc-aphasia-bids
 
-# Install dependencies (requires uv: https://docs.astral.sh/uv/)
-uv sync
+# Install dependencies
+uv sync --all-extras
 
 # Run tests
 uv run pytest
 
 # See CLI help
-uv run hf-bids-nifti --help
+uv run arc-bids --help
+
+# Show dataset info
+uv run arc-bids info
+
+# Download ARC dataset
+./scripts/download_arc.sh
+
+# Build dataset (dry run):
+uv run arc-bids build data/openneuro/ds004884 --dry-run
 ```
 
-> **Note:** ARC and SOOP commands are templates that will raise `NotImplementedError` until their file-table builders are implemented.
+## Downloading ARC
+
+### Option 1: AWS S3 (Recommended - No Auth)
+
+```bash
+aws s3 sync --no-sign-request s3://openneuro.org/ds004884 data/openneuro/ds004884
+```
+
+### Option 2: Interactive Script
+
+```bash
+./scripts/download_arc.sh
+# Choose: 1) Full dataset, 2) Subset for testing, 3) OpenNeuro CLI
+```
+
+### Option 3: OpenNeuro CLI (Deno)
+
+```bash
+# Install Deno + CLI
+curl -fsSL https://deno.land/install.sh | sh
+deno install -A --global jsr:@openneuro/cli -n openneuro
+openneuro login  # requires API key
+
+# Download
+openneuro download ds004884 data/openneuro/ds004884
+```
 
 ## Project Structure
 
-```
-hf-bids-nifti-datasets/
-├── src/
-│   └── hf_bids_nifti/
-│       ├── __init__.py      # Package exports
-│       ├── core.py          # Generic BIDS→HF Dataset logic
-│       ├── config.py        # Dataset configuration objects
-│       ├── arc.py           # ARC-specific STUB
-│       ├── soop.py          # SOOP-specific STUB
-│       └── cli.py           # Typer CLI
+```text
+arc-aphasia-bids/
+├── src/arc_bids/
+│   ├── __init__.py      # Package exports
+│   ├── core.py          # Generic BIDS→HF logic
+│   ├── config.py        # ARC configuration
+│   ├── arc.py           # ARC dataset builder
+│   └── cli.py           # Typer CLI
+├── scripts/
+│   └── download_arc.sh  # Download script
 ├── tests/
+│   ├── test_arc.py          # ARC module tests
 │   ├── test_core_nifti.py   # Core functionality tests
 │   └── test_cli_skeleton.py # CLI tests
-├── pyproject.toml           # PEP 621 project config
-├── uv.lock                  # Reproducible dependencies
-├── Makefile                 # Dev workflow automation
-├── .pre-commit-config.yaml  # Pre-commit hooks
-├── mypy.ini                 # Type checking config
+├── data/                # (gitignored) Local data
+│   └── openneuro/ds004884/
+├── pyproject.toml       # PEP 621 project config
+├── mypy.ini             # Strict typing config
+├── CITATION.cff         # Citation metadata
 └── README.md
 ```
 
@@ -75,7 +143,7 @@ from pathlib import Path
 import pandas as pd
 from datasets import Features, Nifti, Value
 
-from hf_bids_nifti.core import DatasetBuilderConfig, build_hf_dataset
+from arc_bids.core import DatasetBuilderConfig, build_hf_dataset
 
 # Create a file table with paths to NIfTI files
 file_table = pd.DataFrame({
@@ -94,7 +162,7 @@ features = Features({
 # Build the dataset
 config = DatasetBuilderConfig(
     bids_root=Path("/path/to/bids"),
-    hf_repo_id="your-username/your-dataset",
+    hf_repo_id="the-obstacle-is-the-way/arc-aphasia-bids",
     dry_run=True,
 )
 ds = build_hf_dataset(config, file_table, features)
@@ -104,14 +172,17 @@ img = ds[0]["t1w"]  # Returns nibabel.Nifti1Image
 data = img.get_fdata()  # Convert to numpy array
 ```
 
-### CLI (Templates)
+### CLI
 
 ```bash
-# ARC dataset (template - will raise NotImplementedError)
-uv run hf-bids-nifti arc /path/to/ds004884 --hf-repo user/arc-demo --dry-run
+# Show dataset info
+uv run arc-bids info
 
-# SOOP dataset (template - will raise NotImplementedError)
-uv run hf-bids-nifti soop /path/to/ds004889 --hf-repo user/soop-demo --dry-run
+# Build dataset (dry run - won't push to Hub)
+uv run arc-bids build data/openneuro/ds004884 --dry-run
+
+# Build and push to Hub
+uv run arc-bids build data/openneuro/ds004884 --no-dry-run
 ```
 
 ## Development
@@ -125,73 +196,74 @@ uv run hf-bids-nifti soop /path/to/ds004889 --hf-repo user/soop-demo --dry-run
 
 ```bash
 # Install all dependencies (including dev)
-uv sync
+uv sync --all-extras
 
 # Install pre-commit hooks
 uv run pre-commit install
 ```
 
-### Common Commands
+### Quality Checks
 
 ```bash
 # Run tests
-make test
-
-# Run tests with coverage
-make test-cov
+uv run pytest
 
 # Lint code
-make lint
+uv run ruff check .
 
-# Format code
-make format
-
-# Type check
-make typecheck
-
-# Run all pre-commit hooks
-make pre-commit
+# Type check (strict everywhere)
+uv run mypy src tests
 ```
 
-### Adding a New Dataset
+## Citation
 
-1. Create a new module (e.g., `src/hf_bids_nifti/mydataset.py`)
-2. Implement `build_mydataset_file_table(bids_root: Path) -> pd.DataFrame`
-3. Define `get_mydataset_features() -> Features`
-4. Create `build_and_push_mydataset(config: DatasetBuilderConfig)`
-5. Add CLI command in `cli.py`
-6. Add tests in `tests/test_mydataset.py`
+If you use the ARC dataset, please cite both the paper and the dataset:
 
-## Architecture
+### Paper
 
-### Core Concepts
+> Gibson M, Newman-Norlund R, Bonilha L, Fridriksson J, Hickok G, Hillis AE, den Ouden DB, Rorden C. The Aphasia Recovery Cohort, an open-source chronic stroke repository. Scientific Data. 2024;11:981. doi:10.1038/s41597-024-03819-7.
 
-- **`DatasetBuilderConfig`**: Configuration dataclass holding BIDS root path, HF repo ID, and options
-- **`build_hf_dataset()`**: Generic function that converts a pandas DataFrame with NIfTI paths to an HF Dataset
-- **`Features` with `Nifti()`**: HF schema that enables automatic NIfTI loading via nibabel
+### Dataset
 
-### Workflow
+> Gibson M, Newman-Norlund R, Bonilha L, Fridriksson J, Hickok G, Hillis AE, den Ouden DB, Rorden C. Aphasia Recovery Cohort (ARC). OpenNeuro [dataset]. 2023. doi:10.18112/openneuro.ds004884.v1.0.1.
 
-```
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│  BIDS Directory │────▶│  File Table (df) │────▶│  HF Dataset     │
-│  (on disk)      │     │  paths + metadata│     │  Nifti + Values │
-└─────────────────┘     └──────────────────┘     └─────────────────┘
-        │                        │                        │
-        │                        │                        │
-   walk directory         pandas DataFrame          ds.push_to_hub()
-   extract metadata       with NIfTI paths          to HF Hub
+### BibTeX
+
+```bibtex
+@article{gibson2024aphasia,
+  title={The Aphasia Recovery Cohort, an open-source chronic stroke repository},
+  author={Gibson, Makayla and Newman-Norlund, Roger and Bonilha, Leonardo and Fridriksson, Julius and Hickok, Gregory and Hillis, Argye E and den Ouden, Dirk-Bart and Rorden, Christopher},
+  journal={Scientific Data},
+  volume={11},
+  pages={981},
+  year={2024},
+  publisher={Nature Publishing Group},
+  doi={10.1038/s41597-024-03819-7}
+}
+
+@misc{gibson2023arc,
+  title={Aphasia Recovery Cohort (ARC)},
+  author={Gibson, Makayla and Newman-Norlund, Roger and Bonilha, Leonardo and Fridriksson, Julius and Hickok, Gregory and Hillis, Argye E and den Ouden, Dirk-Bart and Rorden, Christopher},
+  year={2023},
+  publisher={OpenNeuro},
+  doi={10.18112/openneuro.ds004884.v1.0.1}
+}
 ```
 
 ## References
 
-- [HuggingFace Datasets - NIfTI](https://huggingface.co/docs/datasets/en/nifti_dataset)
+- Gibson M, Newman-Norlund R, Bonilha L, Fridriksson J, Hickok G, Hillis AE, den Ouden DB, Rorden C. *The Aphasia Recovery Cohort, an open-source chronic stroke repository.* Scientific Data. 2024;11:981. doi:[10.1038/s41597-024-03819-7](https://doi.org/10.1038/s41597-024-03819-7).
+
+- Gibson M, Newman-Norlund R, Bonilha L, Fridriksson J, Hickok G, Hillis AE, den Ouden DB, Rorden C. *Aphasia Recovery Cohort (ARC).* OpenNeuro [dataset]. 2023. doi:[10.18112/openneuro.ds004884.v1.0.1](https://doi.org/10.18112/openneuro.ds004884.v1.0.1).
+
+- OpenNeuro. *OpenNeuro brain imaging data repository.* CC0-licensed BIDS datasets. <https://openneuro.org>.
+
+- [HuggingFace Datasets - NIfTI](https://huggingface.co/docs/datasets/nifti_dataset)
 - [BIDS Specification](https://bids-specification.readthedocs.io/)
-- [OpenNeuro](https://openneuro.org/)
 - [nibabel Documentation](https://nipy.org/nibabel/)
 
 ## License
 
-Apache-2.0
+**This package**: Apache-2.0
 
-The source datasets (ARC, SOOP) are released under CC0 (Public Domain) on OpenNeuro.
+**ARC dataset**: The ARC dataset (OpenNeuro ds004884) is released under a Creative Commons CC0 license via OpenNeuro, meaning it can be freely reused, redistributed, and mirrored (including to Hugging Face), with appropriate scholarly citation.
