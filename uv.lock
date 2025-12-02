@@ -198,7 +198,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "datasets", specifier = ">=3.4.0" },
+    { name = "datasets", git = "https://github.com/huggingface/datasets.git" },
     { name = "hf-xet", specifier = ">=1.0.0" },
     { name = "huggingface-hub", specifier = ">=0.32.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.11.0" },
@@ -466,8 +466,8 @@ toml = [
 
 [[package]]
 name = "datasets"
-version = "4.4.1"
-source = { registry = "https://pypi.org/simple" }
+version = "4.4.2.dev0"
+source = { git = "https://github.com/huggingface/datasets.git#004a5bf4addd9293d6d40f43360c03c8f7e42b28" }
 dependencies = [
     { name = "dill" },
     { name = "filelock" },
@@ -484,10 +484,6 @@ dependencies = [
     { name = "requests" },
     { name = "tqdm" },
     { name = "xxhash" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/93/bf/0dae295d6d1ba0b1a200a9dd216838464b5bbd05da01407cb1330b377445/datasets-4.4.1.tar.gz", hash = "sha256:80322699aa8c0bbbdb7caa87906da689c3c2e29523cff698775c67f28fdab1fc", size = 585341 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/3b/5e/6f8d874366788ad5d549e9ba258037d974dda6e004843be1bda794571701/datasets-4.4.1-py3-none-any.whl", hash = "sha256:c1163de5211e42546079ab355cc0250c7e6db16eb209ac5ac6252f801f596c44", size = 511591 },
 ]
 
 [[package]]
