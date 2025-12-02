@@ -1,0 +1,11 @@
+# Markdownlint configuration
+# See: https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md
+
+# Disable line length limit (docs can have long lines)
+MD013: false
+
+# Allow inline HTML when needed
+MD033: false
+
+# Allow first line to not be a heading (we use blockquotes)
+MD041: false

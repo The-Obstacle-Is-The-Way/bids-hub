@@ -25,3 +25,6 @@ repos:
           - types-pyyaml
         args: [--config-file=pyproject.toml, src/]
         pass_filenames: false
+
+  # Note: Markdown linting via CodeRabbit during PR review.
+  # For local checks: npx markdownlint-cli2 "docs/**/*.md" --fix
