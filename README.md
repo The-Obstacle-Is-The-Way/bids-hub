@@ -1,6 +1,128 @@
-# hf-bids-nifti-datasets
+# arc-aphasia-bids
 
-Template for converting BIDS neuroimaging datasets (e.g., ARC, SOOP) into Hugging Face Datasets with NIfTI + tabular features.
+Upload the **Aphasia Recovery Cohort (ARC)** dataset to Hugging Face Hub.
+
+> **Status**: Phase 0 (Setup & Exploration)
+> **Target HF Repo**: `the-obstacle-is-the-way/arc-aphasia-bids`
+
+## What is ARC?
+
+The [Aphasia Recovery Cohort (ARC)](https://openneuro.org/datasets/ds004884) is a BIDS-formatted neuroimaging dataset containing:
+
+- **230 chronic stroke patients** with aphasia
+- **902 scanning sessions** (longitudinal)
+- **Imaging**: T1w, T2w, FLAIR, diffusion, fMRI, resting-state (NIfTI)
+- **Annotations**: Expert-drawn lesion maps
+- **Tabular**: Demographics + WAB (Western Aphasia Battery) scores
+
+**Source**: [OpenNeuro ds004884](https://openneuro.org/datasets/ds004884/versions/1.0.1)
+**Paper**: [Scientific Data (2024)](https://www.nature.com/articles/s41597-024-03819-7)
+**License**: CC0 (Public Domain) - Redistribution OK
+
+## Goal
+
+Convert ARC from BIDS → HuggingFace Dataset that:
+1. Works with `datasets.load_dataset()`
+2. Uses HF's `Nifti()` feature type for lazy NIfTI loading
+3. Enables `push_to_hub()` workflow
+4. Renders in HF Hub viewer via NiiVue integration
+
+## Architecture
+
+This repo was created from the [hf-bids-nifti-datasets](https://github.com/The-Obstacle-Is-The-Way/hf-bids-nifti-datasets) template.
+
+### Data Flow
+
+```
+OpenNeuro ds004884 (BIDS)
+        │
+        ▼ AWS S3 or OpenNeuro CLI
+Local: data/openneuro/ds004884/  (gitignored)
+        │
+        ▼ Python walks BIDS tree
+pandas DataFrame (paths + metadata)
+        │
+        ▼ build_hf_dataset()
+datasets.Dataset with Nifti() features
+        │
+        ▼ push_to_hub()
+HF Hub (via XET storage)
+```
+
+### Key Modules
+
+| Module | Purpose |
+|--------|---------|
+| `src/hf_bids_nifti/core.py` | Generic BIDS→HF Dataset conversion |
+| `src/hf_bids_nifti/arc.py` | ARC-specific builder (to implement) |
+| `src/hf_bids_nifti/cli.py` | Typer CLI |
+| `scripts/download_arc.sh` | Download ARC from OpenNeuro |
+
+## Quickstart
+
+```bash
+# Clone
+git clone https://github.com/The-Obstacle-Is-The-Way/arc-aphasia-bids.git
+cd arc-aphasia-bids
+
+# Install dependencies
+uv sync --all-extras
+
+# Run tests
+uv run pytest
+
+# Download ARC dataset (choose S3 or subset)
+./scripts/download_arc.sh
+
+# Once implemented:
+uv run hf-bids-nifti arc data/openneuro/ds004884 \
+  --hf-repo the-obstacle-is-the-way/arc-aphasia-bids \
+  --dry-run
+```
+
+## Downloading ARC
+
+### Option 1: AWS S3 (Recommended - No Auth)
+
+```bash
+aws s3 sync --no-sign-request s3://openneuro.org/ds004884 data/openneuro/ds004884
+```
+
+### Option 2: Interactive Script
+
+```bash
+./scripts/download_arc.sh
+# Choose: 1) Full dataset, 2) Subset for testing, 3) OpenNeuro CLI
+```
+
+### Option 3: OpenNeuro CLI (Deno)
+
+```bash
+# Install Deno + CLI
+curl -fsSL https://deno.land/install.sh | sh
+deno install -A --global jsr:@openneuro/cli -n openneuro
+openneuro login  # requires API key
+
+# Download
+openneuro download ds004884 data/openneuro/ds004884
+```
+
+## Project Structure
+
+```
+arc-aphasia-bids/
+├── src/hf_bids_nifti/
+│   ├── core.py          # Generic BIDS→HF logic
+│   ├── arc.py           # ARC builder (STUB - to implement)
+│   └── cli.py           # CLI
+├── scripts/
+│   └── download_arc.sh  # Download script
+├── tests/               # pytest tests
+├── data/                # (gitignored) Local data
+│   └── openneuro/ds004884/
+├── docs/                # Documentation
+└── pyproject.toml
+```
 
 ## Overview
 
