@@ -5,7 +5,6 @@ These tests use synthetic BIDS structures to verify the ARC file-table builder
 and HF Dataset conversion work correctly.
 """
 
-import contextlib
 import tempfile
 from collections.abc import Generator
 from pathlib import Path
@@ -251,19 +250,35 @@ class TestGetArcFeatures:
 class TestBuildAndPushArc:
     """Tests for build_and_push_arc integration."""
 
-    def test_dry_run_builds_dataset(self, synthetic_bids_root: Path) -> None:
-        """Test that dry run builds a dataset without pushing."""
+    def test_dry_run_calls_build_hf_dataset(self, synthetic_bids_root: Path) -> None:
+        """Test that dry run calls build_hf_dataset with correct arguments."""
+        from unittest.mock import patch
+
         config = DatasetBuilderConfig(
             bids_root=synthetic_bids_root,
             hf_repo_id="test/test-repo",
             dry_run=True,
         )
 
-        # This should complete without error in dry_run mode
-        # Note: This will fail because file_table columns won't match features
-        # due to None values in Nifti columns. That's expected behavior.
-        # A real implementation would filter or handle nulls differently.
-        # For this test, we just verify the function doesn't raise before that point.
-        with contextlib.suppress(ValueError, TypeError):
-            # Expected: casting None paths to Nifti() may fail
+        with patch("arc_bids.arc.build_hf_dataset") as mock_build:
+            mock_build.return_value = None
             build_and_push_arc(config)
+            mock_build.assert_called_once()
+
+    def test_dry_run_does_not_push(self, synthetic_bids_root: Path) -> None:
+        """Test that dry run does not call push_dataset_to_hub."""
+        from unittest.mock import MagicMock, patch
+
+        config = DatasetBuilderConfig(
+            bids_root=synthetic_bids_root,
+            hf_repo_id="test/test-repo",
+            dry_run=True,
+        )
+
+        with (
+            patch("arc_bids.arc.build_hf_dataset") as mock_build,
+            patch("arc_bids.arc.push_dataset_to_hub") as mock_push,
+        ):
+            mock_build.return_value = MagicMock()
+            build_and_push_arc(config)
+            mock_push.assert_not_called()
