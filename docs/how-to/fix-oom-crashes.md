@@ -61,6 +61,7 @@ When `embed_external_files=True` kicks in, it tries to load 273 GB into that sin
 This strategy works well for datasets with **hundreds to low thousands of rows** (e.g., neuroimaging sessions). If you have **millions** of small files (e.g., 2D JPEGs), creating millions of shards is inefficient. In that case, aim for ~500MB per shard (e.g., `total_size_mb / 500`).
 
 For neuroimaging (NIfTI), one shard per session is a robust heuristic:
+
 - Aligns with logical data structure
 - ~300 MB average is efficient (well below the 2GB shard limit)
 - Easy to reason about
