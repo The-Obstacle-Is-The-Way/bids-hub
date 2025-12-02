@@ -23,13 +23,15 @@ The ARC dataset contains:
 - Demographic and clinical metadata (age, sex, WAB-AQ scores)
 """
 
-import contextlib
+import logging
 from pathlib import Path
 
 import pandas as pd
 from datasets import Features, Nifti, Value
 
 from .core import DatasetBuilderConfig, build_hf_dataset, push_dataset_to_hub
+
+logger = logging.getLogger(__name__)
 
 
 def _find_nifti_in_session(session_dir: Path, pattern: str) -> str | None:
@@ -122,14 +124,18 @@ def build_arc_file_table(bids_root: Path) -> pd.DataFrame:
         age_at_stroke_raw = row.get("age_at_stroke")
         age_at_stroke: float | None = None
         if age_at_stroke_raw is not None and pd.notna(age_at_stroke_raw):
-            with contextlib.suppress(ValueError, TypeError):
+            try:
                 age_at_stroke = float(age_at_stroke_raw)
+            except (ValueError, TypeError):
+                logger.warning("Invalid age_at_stroke for %s: %r", subject_id, age_at_stroke_raw)
 
         wab_aq_raw = row.get("wab_aq")
         wab_aq: float | None = None
         if wab_aq_raw is not None and pd.notna(wab_aq_raw):
-            with contextlib.suppress(ValueError, TypeError):
+            try:
                 wab_aq = float(wab_aq_raw)
+            except (ValueError, TypeError):
+                logger.warning("Invalid wab_aq for %s: %r", subject_id, wab_aq_raw)
 
         sex = str(row.get("sex", "")) if pd.notna(row.get("sex")) else None
         wab_type = str(row.get("wab_type", "")) if pd.notna(row.get("wab_type")) else None
