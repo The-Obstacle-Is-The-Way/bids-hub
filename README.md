@@ -224,7 +224,7 @@ If you use the ARC dataset, please cite both the paper and the dataset:
 
 ### Dataset
 
-> Gibson M, Newman-Norlund R, Bonilha L, Fridriksson J, Hickok G, Hillis AE, den Ouden DB, Rorden C. Aphasia Recovery Cohort (ARC). OpenNeuro [dataset]. 2024. doi:10.18112/openneuro.ds004884.v1.0.1.
+> Gibson M, Newman-Norlund R, Bonilha L, Fridriksson J, Hickok G, Hillis AE, den Ouden DB, Rorden C. Aphasia Recovery Cohort (ARC). OpenNeuro [dataset]. 2023. doi:10.18112/openneuro.ds004884.v1.0.1.
 
 ### BibTeX
 
@@ -240,10 +240,10 @@ If you use the ARC dataset, please cite both the paper and the dataset:
   doi={10.1038/s41597-024-03819-7}
 }
 
-@misc{gibson2024arc,
+@misc{gibson2023arc,
   title={Aphasia Recovery Cohort (ARC)},
   author={Gibson, Makayla and Newman-Norlund, Roger and Bonilha, Leonardo and Fridriksson, Julius and Hickok, Gregory and Hillis, Argye E and den Ouden, Dirk-Bart and Rorden, Christopher},
-  year={2024},
+  year={2023},
   publisher={OpenNeuro},
   doi={10.18112/openneuro.ds004884.v1.0.1}
 }
@@ -253,7 +253,7 @@ If you use the ARC dataset, please cite both the paper and the dataset:
 
 - Gibson M, Newman-Norlund R, Bonilha L, Fridriksson J, Hickok G, Hillis AE, den Ouden DB, Rorden C. *The Aphasia Recovery Cohort, an open-source chronic stroke repository.* Scientific Data. 2024;11:981. doi:[10.1038/s41597-024-03819-7](https://doi.org/10.1038/s41597-024-03819-7).
 
-- Gibson M, Newman-Norlund R, Bonilha L, Fridriksson J, Hickok G, Hillis AE, den Ouden DB, Rorden C. *Aphasia Recovery Cohort (ARC).* OpenNeuro [dataset]. 2024. doi:[10.18112/openneuro.ds004884.v1.0.1](https://doi.org/10.18112/openneuro.ds004884.v1.0.1).
+- Gibson M, Newman-Norlund R, Bonilha L, Fridriksson J, Hickok G, Hillis AE, den Ouden DB, Rorden C. *Aphasia Recovery Cohort (ARC).* OpenNeuro [dataset]. 2023. doi:[10.18112/openneuro.ds004884.v1.0.1](https://doi.org/10.18112/openneuro.ds004884.v1.0.1).
 
 - OpenNeuro. *OpenNeuro brain imaging data repository.* CC0-licensed BIDS datasets. <https://openneuro.org>.
 
