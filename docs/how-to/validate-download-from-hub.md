@@ -159,7 +159,7 @@ for idx in tqdm(sample_indices, desc="Validating NIfTI hashes"):
             orig_hash = compute_file_hash(Path(original_bolds[0]))
 
             if dl_hash != orig_hash:
-                 mismatches.append(f"{subject_id}/{session_id} [BOLD-run1]")
+                mismatches.append(f"{subject_id}/{session_id} [BOLD-run1]")
 
 if mismatches:
     print(f"❌ Found {len(mismatches)} hash mismatches!")
@@ -341,8 +341,8 @@ def main() -> int:
                     orig_hash = hashlib.sha256(f.read()).hexdigest()
 
                 if dl_hash != orig_hash:
-                     print(f"Mismatch: {subject_id}/{session_id} BOLD-run1")
-                     mismatches += 1
+                    print(f"Mismatch: {subject_id}/{session_id} BOLD-run1")
+                    mismatches += 1
 
     if mismatches > 0:
         print(f"❌ {mismatches} hash mismatches in sample")
