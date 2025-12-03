@@ -82,8 +82,8 @@ The Aphasia Recovery Cohort (ARC) is a large-scale, longitudinal neuroimaging da
 |--------|-------|
 | Subjects | 230 |
 | Sessions | 902 |
-| T1-weighted scans | 441 |
-| T2-weighted scans | 447 |
+| T1-weighted scans | 447 |
+| T2-weighted scans | 441 |
 | FLAIR scans | 235 |
 | BOLD fMRI runs | 1,402 |
 | Diffusion (DWI) runs | 2,089 |
