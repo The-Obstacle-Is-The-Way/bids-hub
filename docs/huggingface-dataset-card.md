@@ -157,6 +157,7 @@ Each row represents a single **scanning session** (subject + timepoint):
 ### Curation Rationale
 
 The ARC dataset was created to address the lack of large-scale, publicly available neuroimaging data for aphasia research. It enables:
+
 - Development of automated lesion segmentation algorithms
 - Machine learning models for aphasia severity prediction
 - Studies of brain plasticity and language recovery
@@ -193,6 +194,7 @@ Trained neuroimaging researchers at academic medical centers with expertise in s
 ### Social Impact
 
 This dataset enables research into:
+
 - Improved stroke rehabilitation through better outcome prediction
 - Automated clinical tools for aphasia assessment
 - Understanding of brain-language relationships
@@ -289,6 +291,7 @@ Thanks to [@The-Obstacle-Is-The-Way](https://github.com/The-Obstacle-Is-The-Way)
 ### Multi-Run Support
 
 Functional and diffusion modalities (`bold`, `dwi`, `sbref`) support multiple runs per session. These are stored as lists:
+
 - Empty list `[]` = no data for this session
 - List with items = all runs for this session, sorted by filename
 

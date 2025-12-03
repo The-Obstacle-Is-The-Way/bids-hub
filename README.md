@@ -2,8 +2,7 @@
 
 Upload the **Aphasia Recovery Cohort (ARC)** dataset to HuggingFace Hub.
 
-> **Status**: Phase 0 (Setup & Exploration)
-> **Target HF Repo**: `hugging-science/arc-aphasia-bids`
+> **HF Dataset**: [hugging-science/arc-aphasia-bids](https://huggingface.co/datasets/hugging-science/arc-aphasia-bids) (293 GB, 902 sessions)
 
 ## What is ARC?
 
