@@ -42,23 +42,39 @@ Memory usage stays constant (~1-2 GB) regardless of dataset size.
 
 ## How It Works
 
-Our `push_dataset_to_hub()` function:
+Our `push_dataset_to_hub()` function works around **two upstream bugs**:
+
+1. **Bug 1 (Memory accumulation)**: Process one shard at a time, upload, delete
+2. **Bug 2 (Arrow crash)**: Convert shard to pandas and back before embedding
+
+Steps:
 
 1. **Iterates one shard at a time**
-2. **Embeds NIfTI bytes into Arrow table** (only for current shard)
-3. **Writes to temporary Parquet file on disk**
-4. **Uploads via `HfApi.upload_file(path=...)` - streams from disk, not RAM**
-5. **Deletes temp file and dereferences shard before next iteration**
+2. **Converts to pandas and recreates Dataset** (breaks internal Arrow references)
+3. **Embeds NIfTI bytes into Arrow table** (only for current shard)
+4. **Writes to temporary Parquet file on disk**
+5. **Uploads via `HfApi.upload_file(path=...)` - streams from disk, not RAM**
+6. **Deletes temp file and dereferences shard before next iteration**
 
 ```python
 # From src/arc_bids/core.py
 for i in range(num_shards):
     shard = ds.shard(num_shards=num_shards, index=i, contiguous=True)
-    shard = shard.map(embed_table_storage, batched=True)
-    shard.to_parquet(local_parquet_path)
+
+    # CRITICAL: Convert to pandas and back to break internal Arrow references
+    # that cause crashes in embed_table_storage on Sequence(Nifti()) columns
+    shard_df = shard.to_pandas()
+    fresh_shard = Dataset.from_pandas(shard_df, preserve_index=False)
+    fresh_shard = fresh_shard.cast(ds.features)
+
+    # Now embed and write
+    table = fresh_shard._data.table.combine_chunks()
+    embedded_table = embed_table_storage(table)
+    pq.write_table(embedded_table, str(local_parquet_path))
+
     api.upload_file(path_or_fileobj=str(local_parquet_path), ...)
     local_parquet_path.unlink()  # Free disk
-    del shard  # Free RAM
+    del fresh_shard, shard_df, shard  # Free RAM
 ```
 
 ---
@@ -69,10 +85,13 @@ If you need this pattern for a different dataset, copy the approach from `src/ar
 
 1. Don't use `ds.push_to_hub()` for large embedded datasets
 2. Manually shard with `ds.shard()`
-3. Embed with `embed_table_storage`
-4. Write to Parquet on disk
-5. Upload with `HfApi.upload_file(path=...)` (file path, not bytes)
-6. Clean up before next shard
+3. **Convert shard to pandas and recreate Dataset** (critical for `Sequence(Nifti())`)
+4. Embed with `embed_table_storage(table)`
+5. Write to Parquet on disk with `pq.write_table()`
+6. Upload with `HfApi.upload_file(path=...)` (file path, not bytes)
+7. Clean up before next shard
+
+See [UPSTREAM_BUG_ANALYSIS.md](/UPSTREAM_BUG_ANALYSIS.md) for full technical details.
 
 ---
 

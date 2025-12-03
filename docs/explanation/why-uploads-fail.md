@@ -156,14 +156,27 @@ See [OOM Root Cause Analysis](oom-root-cause.md) for the full technical breakdow
 
 ## The Real Solution: Custom Memory-Safe Uploader
 
-The `arc-bids` package implements a custom uploader that bypasses this bug:
+The `arc-bids` package implements a custom uploader that bypasses **two upstream bugs**:
 
+### Bug 1: Memory Accumulation
 1. **Process one shard at a time**
 2. **Write to temporary Parquet file on disk**
 3. **Upload via `HfApi.upload_file(path=...)` - streams from disk**
 4. **Delete temp file before next iteration**
 
 Memory usage is now **constant** (~1 GB) instead of **linear** (270 GB).
+
+### Bug 2: Arrow Crash on Sharded Datasets
+Even with Bug 1 fixed, `embed_table_storage` crashes on shards with `Sequence(Nifti())` columns due to internal Arrow references. The fix is to convert the shard to pandas and recreate the Dataset:
+
+```python
+shard_df = shard.to_pandas()
+fresh_shard = Dataset.from_pandas(shard_df, preserve_index=False)
+fresh_shard = fresh_shard.cast(ds.features)
+# Now embedding works
+```
+
+See [UPSTREAM_BUG_ANALYSIS.md](/UPSTREAM_BUG_ANALYSIS.md) for full details.
 
 See [Fix OOM Crashes](../how-to/fix-oom-crashes.md) for usage
 
