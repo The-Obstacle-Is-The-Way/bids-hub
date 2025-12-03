@@ -126,9 +126,9 @@ This 470x variance in session size is why `max_shard_size` fails - no fixed thre
 
 ---
 
-## Why `num_shards` Is the Solution
+## Why `num_shards` Alone Doesn't Fix It
 
-Explicit sharding bypasses all the estimation problems:
+You might think explicit sharding fixes the problem:
 
 ```python
 ds.push_to_hub(
@@ -138,19 +138,34 @@ ds.push_to_hub(
 )
 ```
 
-| Aspect | Before | After |
-|--------|--------|-------|
-| Shards | 1 | 902 |
-| RAM needed | 273 GB | ~805 MB max |
-| Estimation | Based on strings | N/A (explicit) |
-| Result | OOM crash | Success |
+**This still crashes.** The deeper issue is in `datasets`' internal `_push_parquet_shards_to_hub` function:
 
-### Why One Shard Per Session?
+```python
+# Inside datasets library (arrow_dataset.py)
+additions = []
+for shard in shards:
+    parquet_content = shard.to_parquet_bytes()  # ~300 MB bytes
+    shard_addition = CommitOperationAdd(path_or_fileobj=parquet_content)
+    api.preupload_lfs_files(additions=[shard_addition])
+    additions.append(shard_addition)  # <-- THE BUG: keeps bytes in memory
+```
 
-1. **Memory bounded**: Largest session is 805 MB, safe on any machine
-2. **Logically coherent**: 1 shard = 1 session = 1 logical unit
-3. **HF Hub compliant**: All shards < 200 GB limit, < 50 GB recommended
-4. **Parallelizable**: Can be processed independently
+Even with 902 shards, the library accumulates ALL shard bytes in the `additions` list, never releasing them. Result: 902 × 300 MB = ~270 GB RAM → OOM.
+
+See [OOM Root Cause Analysis](oom-root-cause.md) for the full technical breakdown.
+
+## The Real Solution: Custom Memory-Safe Uploader
+
+The `arc-bids` package implements a custom uploader that bypasses this bug:
+
+1. **Process one shard at a time**
+2. **Write to temporary Parquet file on disk**
+3. **Upload via `HfApi.upload_file(path=...)` - streams from disk**
+4. **Delete temp file before next iteration**
+
+Memory usage is now **constant** (~1 GB) instead of **linear** (270 GB).
+
+See [Fix OOM Crashes](../how-to/fix-oom-crashes.md) for usage
 
 ---
 

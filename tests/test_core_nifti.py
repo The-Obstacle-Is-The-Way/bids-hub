@@ -353,3 +353,48 @@ class TestPushDatasetToHub:
             mock_push.assert_called_once()
             assert mock_push.call_args[1]["private"] is True
             assert mock_push.call_args[1]["commit_message"] == "test"
+
+    def test_push_dataset_to_hub_custom_sharded_logic(self) -> None:
+        """Ensure custom sharding logic is triggered when num_shards > 1."""
+        from unittest.mock import MagicMock, patch
+
+        config = DatasetBuilderConfig(
+            bids_root=Path("/fake/path"),
+            hf_repo_id="test/arc-aphasia",
+        )
+
+        mock_ds = MagicMock()
+        # Mock shard to return a mock
+        mock_shard = MagicMock()
+        mock_ds.shard.return_value = mock_shard
+        # Mock with_format chain
+        mock_shard.with_format.return_value = mock_shard
+        # Mock map
+        mock_shard.map.return_value = mock_shard
+
+        # Mock HfApi
+        with patch("arc_bids.core.HfApi") as MockApi, patch("arc_bids.core.embed_table_storage"):
+            mock_api_instance = MockApi.return_value
+
+            # Side effect for to_parquet to create the file so unlink() works
+            def create_dummy_file(path: str) -> None:
+                Path(path).touch()
+
+            mock_shard.to_parquet.side_effect = create_dummy_file
+
+            # Call with num_shards=2
+            push_dataset_to_hub(mock_ds, config, num_shards=2)
+
+            # Verify standard push_to_hub was NOT called
+            mock_ds.push_to_hub.assert_not_called()
+
+            # Verify create_repo called
+            mock_api_instance.create_repo.assert_called_once_with(
+                "test/arc-aphasia", repo_type="dataset", exist_ok=True
+            )
+
+            # Verify sharding called twice
+            assert mock_ds.shard.call_count == 2
+
+            # Verify upload_file called (at least twice for shards)
+            assert mock_api_instance.upload_file.call_count >= 2

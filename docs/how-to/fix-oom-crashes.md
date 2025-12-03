@@ -1,116 +1,95 @@
 # How to Fix OOM Crashes on Large Datasets
 
 > **Problem**: Upload crashes at 0% with "leaked semaphore" warning
-> **Solution**: Force explicit sharding with `num_shards`
+> **Solution**: Use `arc-bids` which has a custom memory-safe uploader
 
 ---
 
 ## Symptoms
 
 ```text
-Uploading the dataset shards:   0%|          | 0/1 [00:00<?, ? shards/s]
-Map:   0%|          | 0/902 [00:00<?, ? examples/s]
+Uploading the dataset shards:   0%|          | 0/902 [00:00<?, ? shards/s]
 UserWarning: resource_tracker: There appear to be 1 leaked semaphore objects
 [Process killed]
 ```
 
-The upload crashes immediately at 0% before processing any data.
+The upload crashes at 0% even WITH `num_shards` set.
 
 ---
 
-## Quick Fix
+## Root Cause
 
-Add `num_shards` to your `push_to_hub()` call:
+The `datasets` library has a bug: it accumulates ALL shard byte-strings in memory before finalizing the upload, even when using `num_shards`. For 902 shards × ~300 MB = ~270 GB RAM → OOM.
+
+See [OOM Root Cause Analysis](../explanation/oom-root-cause.md) for full details.
+
+---
+
+## Solution: Use arc-bids CLI
+
+The `arc-bids` package includes a custom memory-safe uploader that bypasses this bug:
+
+```bash
+# Build and upload (memory-safe)
+uv run arc-bids build data/openneuro/ds004884 \
+    --hf-repo hugging-science/arc-aphasia-bids \
+    --no-dry-run
+```
+
+Memory usage stays constant (~1-2 GB) regardless of dataset size.
+
+---
+
+## How It Works
+
+Our `push_dataset_to_hub()` function:
+
+1. **Iterates one shard at a time**
+2. **Embeds NIfTI bytes into Arrow table** (only for current shard)
+3. **Writes to temporary Parquet file on disk**
+4. **Uploads via `HfApi.upload_file(path=...)` - streams from disk, not RAM**
+5. **Deletes temp file and dereferences shard before next iteration**
 
 ```python
-ds.push_to_hub(
-    "your-org/your-dataset",
-    embed_external_files=True,
-    num_shards=len(your_dataframe),  # Add this line
-)
+# From src/arc_bids/core.py
+for i in range(num_shards):
+    shard = ds.shard(num_shards=num_shards, index=i, contiguous=True)
+    shard = shard.map(embed_table_storage, batched=True)
+    shard.to_parquet(local_parquet_path)
+    api.upload_file(path_or_fileobj=str(local_parquet_path), ...)
+    local_parquet_path.unlink()  # Free disk
+    del shard  # Free RAM
 ```
 
 ---
 
-## Why This Works
+## If You're Not Using arc-bids
 
-The `datasets` library estimates how many shards to create based on your **input data size**:
+If you need this pattern for a different dataset, copy the approach from `src/arc_bids/core.py`:
 
-| What Library Sees | Actual Size |
-|-------------------|-------------|
-| DataFrame with file paths (strings) | ~1 MB |
-| Embedded NIfTI bytes | ~273 GB |
-
-Because 1 MB < 500 MB (default shard size), it creates **1 shard** for everything.
-
-When `embed_external_files=True` kicks in, it tries to load 273 GB into that single shard in RAM → OOM.
-
-**With `num_shards=N`**, you force N separate shards, each processed independently with bounded memory.
-
----
-
-## Choosing num_shards
-
-| Dataset Size | Recommendation |
-|--------------|----------------|
-| < 10 GB | Default is fine |
-| 10-100 GB | `num_shards=100` or row count |
-| > 100 GB | `num_shards=len(dataframe)` |
-
-**When is `len(dataframe)` safe?**
-This strategy works well for datasets with **hundreds to low thousands of rows** (e.g., neuroimaging sessions). If you have **millions** of small files (e.g., 2D JPEGs), creating millions of shards is inefficient. In that case, aim for ~500MB per shard (e.g., `total_size_mb / 500`).
-
-For neuroimaging (NIfTI), one shard per session is a robust heuristic:
-
-- Aligns with logical data structure
-- ~300 MB average is efficient (well below the 2GB shard limit)
-- Easy to reason about
-
----
-
-## Full Example
-
-```python
-from datasets import Dataset, Features, Value, Nifti
-import pandas as pd
-
-# Your file table
-file_table = pd.DataFrame({...})  # 902 rows
-
-# Schema
-features = Features({
-    "subject_id": Value("string"),
-    "t1w": Nifti(),
-    "bold": Nifti(),
-})
-
-# Create dataset
-ds = Dataset.from_pandas(file_table, preserve_index=False)
-ds = ds.cast(features)
-
-# Upload with explicit sharding
-ds.push_to_hub(
-    "your-org/your-dataset",
-    embed_external_files=True,
-    num_shards=len(file_table),  # 902 shards, ~300 MB each
-)
-```
+1. Don't use `ds.push_to_hub()` for large embedded datasets
+2. Manually shard with `ds.shard()`
+3. Embed with `embed_table_storage`
+4. Write to Parquet on disk
+5. Upload with `HfApi.upload_file(path=...)` (file path, not bytes)
+6. Clean up before next shard
 
 ---
 
 ## Verification
 
-After applying the fix, you should see progress like:
+After running the upload, you should see steady progress:
 
 ```text
-Uploading the dataset shards:   0%|          | 2/902 [00:07<47:55, 3.20s/shard]
+Uploading Shards:  50%|█████     | 451/902 [2:15:30<2:10:00, 8.65s/it]
 ```
 
-Note: `2/902` instead of `0/1` - the sharding is working.
+Memory usage stays flat at ~1-2 GB instead of growing linearly.
 
 ---
 
 ## Related
 
-- [Why Uploads Fail](../explanation/why-uploads-fail.md) - Full explanation of the metadata trap
+- [OOM Root Cause Analysis](../explanation/oom-root-cause.md) - Technical deep-dive
+- [Why Uploads Fail](../explanation/why-uploads-fail.md) - Full explanation
 - [Fix Empty Uploads](fix-empty-uploads.md) - Another common issue
