@@ -39,12 +39,21 @@ Example usage:
     ```
 """
 
+import gc
+import logging
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
+import pyarrow.parquet as pq
 from datasets import Dataset, Features
+from datasets.table import embed_table_storage
+from huggingface_hub import HfApi
+from tqdm.auto import tqdm
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -162,12 +171,13 @@ def push_dataset_to_hub(
     """
     Push a dataset to the Hugging Face Hub.
 
+    This custom implementation supports memory-efficient sharded uploads for large
+    datasets (like ARC-BIDS) where standard `push_to_hub` causes OOM.
+    It bypasses the `datasets` library's accumulation of byte-strings in memory
+    by manually sharding, embedding, and uploading via `HfApi`.
+
     Assumes the user has already authenticated via `huggingface-cli login`
     or has set the HF_TOKEN environment variable.
-
-    IMPORTANT: For NIfTI datasets, embed_external_files MUST be True (default) to
-    actually upload the NIfTI file contents to the Hub. Setting to False only uploads
-    metadata with local file paths, resulting in a broken dataset that others cannot use.
 
     Args:
         ds: The Hugging Face Dataset to push.
@@ -176,14 +186,107 @@ def push_dataset_to_hub(
             into Parquet shards and uploaded to Hub. Required for datasets to be
             usable by others. Only set to False for local-only testing.
         **push_kwargs: Additional keyword arguments passed to `ds.push_to_hub()`.
-
-    Example:
-        ```python
-        push_dataset_to_hub(ds, config, private=True)
-        ```
+            - num_shards (int): Recommended for large datasets.
     """
-    ds.push_to_hub(
-        config.hf_repo_id,
-        embed_external_files=embed_external_files,
-        **push_kwargs,
+    num_shards = push_kwargs.get("num_shards")
+
+    # Use standard push_to_hub if we don't need heavy sharding logic
+    if not num_shards or num_shards <= 1:
+        ds.push_to_hub(
+            config.hf_repo_id,
+            embed_external_files=embed_external_files,
+            **push_kwargs,
+        )
+        return
+
+    # Memory-Efficient Custom Upload Loop
+    logger.info(
+        f"Starting memory-efficient push to {config.hf_repo_id} with {num_shards} shards..."
     )
+
+    api = HfApi()
+    api.create_repo(config.hf_repo_id, repo_type="dataset", exist_ok=True)
+
+    split_name = config.split if config.split else "train"
+
+    with tempfile.TemporaryDirectory() as tmpdir_root:
+        tmp_path = Path(tmpdir_root)
+
+        # 1. Upload Shards Sequentially
+        for i in tqdm(range(num_shards), desc="Uploading Shards"):
+            # Create the shard slice
+            shard = ds.shard(num_shards=num_shards, index=i, contiguous=True)
+
+            # Write shard to temporary Parquet file
+            shard_fname = f"{split_name}-{i:05d}-of-{num_shards:05d}.parquet"
+            local_parquet_path = tmp_path / shard_fname
+
+            if embed_external_files:
+                # CRITICAL FIX: Convert shard to pandas and back to break internal
+                # Arrow references that cause crashes in embed_table_storage.
+                # See UPSTREAM_BUG_ANALYSIS.md for full explanation.
+                #
+                # The issue: ds.shard() creates a view with internal state that
+                # causes embed_table_storage to crash (SIGKILL) on Sequence(Nifti())
+                # columns. Converting to pandas and recreating the Dataset breaks
+                # these problematic references.
+                shard_df = shard.to_pandas()
+                fresh_shard = Dataset.from_pandas(shard_df, preserve_index=False)
+                fresh_shard = fresh_shard.cast(ds.features)
+
+                # Now get the clean Arrow table
+                table = fresh_shard._data.table.combine_chunks()
+
+                # Embed external files (NIfTIs) into the Arrow table
+                embedded_table = embed_table_storage(table)
+
+                # Write embedded table directly with PyArrow
+                pq.write_table(embedded_table, str(local_parquet_path))
+
+                # Clean up the intermediate objects
+                del fresh_shard, shard_df
+            else:
+                # No embedding needed, use standard parquet writer
+                shard.to_parquet(str(local_parquet_path))
+
+            # Upload the shard immediately using HfApi
+            # This streams the file from disk -> network, keeping RAM low.
+            try:
+                api.upload_file(
+                    path_or_fileobj=str(local_parquet_path),
+                    path_in_repo=f"data/{shard_fname}",
+                    repo_id=config.hf_repo_id,
+                    repo_type="dataset",
+                    commit_message=f"Upload shard {i+1}/{num_shards}",
+                )
+            except Exception:
+                logger.exception("Failed to upload shard %d", i)
+                raise
+
+            # Cleanup immediately to save disk space
+            local_parquet_path.unlink()
+
+            # Explicitly delete shard and force garbage collection to reclaim memory
+            # before processing next shard (critical for 270GB+ datasets)
+            del shard
+            gc.collect()
+
+        # 2. Upload Metadata (dataset_info.json)
+        logger.info("Generating and uploading dataset info...")
+        ds.info.write_to_directory(str(tmp_path))
+
+        # 'write_to_directory' usually creates 'dataset_info.json'
+        # We check for it and upload it.
+        info_files = list(tmp_path.glob("dataset_info.json"))
+        if info_files:
+            api.upload_file(
+                path_or_fileobj=str(info_files[0]),
+                path_in_repo="dataset_info.json",
+                repo_id=config.hf_repo_id,
+                repo_type="dataset",
+                commit_message="Upload dataset metadata",
+            )
+        else:
+            logger.warning("dataset_info.json was not generated.")
+
+    logger.info("Memory-efficient upload complete.")

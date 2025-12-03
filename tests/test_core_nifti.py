@@ -353,3 +353,64 @@ class TestPushDatasetToHub:
             mock_push.assert_called_once()
             assert mock_push.call_args[1]["private"] is True
             assert mock_push.call_args[1]["commit_message"] == "test"
+
+    def test_push_dataset_to_hub_custom_sharded_logic(self, temp_nifti_dir: Path) -> None:
+        """Ensure custom sharding logic is triggered when num_shards > 1."""
+        from unittest.mock import patch
+
+        import pyarrow as pa
+
+        config = DatasetBuilderConfig(
+            bids_root=Path("/fake/path"),
+            hf_repo_id="test/arc-aphasia",
+        )
+
+        # Create a real small dataset (2 rows) for testing
+        features = Features(
+            {
+                "subject_id": Value("string"),
+                "t1w": Nifti(),
+            }
+        )
+        real_ds = Dataset.from_dict(
+            {
+                "subject_id": ["sub-001", "sub-002"],
+                "t1w": [
+                    str(temp_nifti_dir / "sub-000_T1w.nii.gz"),
+                    str(temp_nifti_dir / "sub-001_T1w.nii.gz"),
+                ],
+            }
+        ).cast(features)
+
+        # Mock HfApi and pq.write_table
+        with (
+            patch("arc_bids.core.HfApi") as MockApi,
+            patch("arc_bids.core.embed_table_storage") as mock_embed,
+            patch("arc_bids.core.pq.write_table") as mock_write,
+        ):
+            mock_api_instance = MockApi.return_value
+            # embed_table_storage returns a simple table
+            mock_embed.return_value = pa.table({"col": [1]})
+
+            # Side effect for write_table to create the file so unlink() works
+            def create_dummy_file(table: pa.Table, path: str) -> None:
+                Path(path).touch()
+
+            mock_write.side_effect = create_dummy_file
+
+            # Call with num_shards=2 using real dataset
+            push_dataset_to_hub(real_ds, config, num_shards=2)
+
+            # Verify create_repo called
+            mock_api_instance.create_repo.assert_called_once_with(
+                "test/arc-aphasia", repo_type="dataset", exist_ok=True
+            )
+
+            # Verify embed_table_storage called twice (once per shard)
+            assert mock_embed.call_count == 2
+
+            # Verify pq.write_table called twice
+            assert mock_write.call_count == 2
+
+            # Verify upload_file called (at least twice for shards)
+            assert mock_api_instance.upload_file.call_count >= 2
