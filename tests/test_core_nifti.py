@@ -358,29 +358,36 @@ class TestPushDatasetToHub:
         """Ensure custom sharding logic is triggered when num_shards > 1."""
         from unittest.mock import MagicMock, patch
 
+        import pyarrow as pa
+
         config = DatasetBuilderConfig(
             bids_root=Path("/fake/path"),
             hf_repo_id="test/arc-aphasia",
         )
 
         mock_ds = MagicMock()
-        # Mock shard to return a mock
+        # Mock shard to return a mock with proper _data.table
         mock_shard = MagicMock()
         mock_ds.shard.return_value = mock_shard
-        # Mock with_format chain
-        mock_shard.with_format.return_value = mock_shard
-        # Mock map
-        mock_shard.map.return_value = mock_shard
+        # Create a real (empty) PyArrow table for the mock
+        mock_table = pa.table({"col": [1]})
+        mock_shard._data.table = mock_table
 
-        # Mock HfApi
-        with patch("arc_bids.core.HfApi") as MockApi, patch("arc_bids.core.embed_table_storage"):
+        # Mock HfApi and pq.write_table
+        with (
+            patch("arc_bids.core.HfApi") as MockApi,
+            patch("arc_bids.core.embed_table_storage") as mock_embed,
+            patch("arc_bids.core.pq.write_table") as mock_write,
+        ):
             mock_api_instance = MockApi.return_value
+            # embed_table_storage returns the same table
+            mock_embed.return_value = mock_table
 
-            # Side effect for to_parquet to create the file so unlink() works
-            def create_dummy_file(path: str) -> None:
+            # Side effect for write_table to create the file so unlink() works
+            def create_dummy_file(table: pa.Table, path: str) -> None:
                 Path(path).touch()
 
-            mock_shard.to_parquet.side_effect = create_dummy_file
+            mock_write.side_effect = create_dummy_file
 
             # Call with num_shards=2
             push_dataset_to_hub(mock_ds, config, num_shards=2)
@@ -395,6 +402,12 @@ class TestPushDatasetToHub:
 
             # Verify sharding called twice
             assert mock_ds.shard.call_count == 2
+
+            # Verify embed_table_storage called twice (once per shard)
+            assert mock_embed.call_count == 2
+
+            # Verify pq.write_table called twice
+            assert mock_write.call_count == 2
 
             # Verify upload_file called (at least twice for shards)
             assert mock_api_instance.upload_file.call_count >= 2

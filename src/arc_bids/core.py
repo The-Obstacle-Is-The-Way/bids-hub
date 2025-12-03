@@ -46,6 +46,7 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
+import pyarrow.parquet as pq
 from datasets import Dataset, Features
 from datasets.table import embed_table_storage
 from huggingface_hub import HfApi
@@ -215,26 +216,21 @@ def push_dataset_to_hub(
             # Create the shard slice
             shard = ds.shard(num_shards=num_shards, index=i, contiguous=True)
 
-            if embed_external_files:
-                # CRITICAL: Manually trigger the embedding of external files (NIfTIs)
-                # This loads the file bytes into memory, but ONLY for this shard (~300MB).
-                # We use 'keep_in_memory=True' to avoid disk I/O overhead.
-                shard = shard.with_format("arrow")
-                shard = shard.map(
-                    embed_table_storage,
-                    batched=True,
-                    batch_size=10,
-                    keep_in_memory=True,
-                    desc=f"Embedding Shard {i+1}/{num_shards}",
-                )
-                shard = shard.with_format(None)
-
             # Write shard to temporary Parquet file
             shard_fname = f"{split_name}-{i:05d}-of-{num_shards:05d}.parquet"
             local_parquet_path = tmp_path / shard_fname
 
-            # Use standard parquet writer
-            shard.to_parquet(str(local_parquet_path))
+            if embed_external_files:
+                # CRITICAL: Embed external files (NIfTIs) into the Arrow table.
+                # embed_table_storage expects a pyarrow.Table, NOT batches.
+                # shard._data.table gives us the raw PyArrow table.
+                table = shard._data.table
+                embedded_table = embed_table_storage(table)
+                # Write embedded table directly with PyArrow (bypasses datasets overhead)
+                pq.write_table(embedded_table, str(local_parquet_path))
+            else:
+                # No embedding needed, use standard parquet writer
+                shard.to_parquet(str(local_parquet_path))
 
             # Upload the shard immediately using HfApi
             # This streams the file from disk -> network, keeping RAM low.

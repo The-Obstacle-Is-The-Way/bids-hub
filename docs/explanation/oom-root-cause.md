@@ -109,8 +109,11 @@ We implemented a **custom memory-safe uploader** in `src/arc_bids/core.py`:
 ```python
 for i in range(num_shards):
     shard = ds.shard(num_shards=num_shards, index=i, contiguous=True)
-    shard = shard.map(embed_table_storage, batched=True)
-    shard.to_parquet(local_parquet_path)
+    # Get raw PyArrow table and embed external files
+    table = shard._data.table
+    embedded_table = embed_table_storage(table)
+    # Write with PyArrow directly (not datasets)
+    pq.write_table(embedded_table, local_parquet_path)
     api.upload_file(path_or_fileobj=str(local_parquet_path), ...)
     local_parquet_path.unlink()  # Free disk
     del shard  # Free RAM
@@ -119,10 +122,37 @@ for i in range(num_shards):
 **Key differences**:
 
 1. **One shard at a time**: Process, upload, delete, repeat
-2. **File path, not bytes**: `upload_file(path=...)` streams from disk
-3. **Aggressive cleanup**: Delete temp file and dereference before next shard
+2. **Direct Arrow table access**: `shard._data.table` gives raw `pyarrow.Table`
+3. **Correct embedding**: `embed_table_storage(table)` expects Arrow table, NOT batches
+4. **File path, not bytes**: `upload_file(path=...)` streams from disk
+5. **Aggressive cleanup**: Delete temp file and dereference before next shard
 
 **Result**: Memory usage is constant (~1 GB) instead of linear (270 GB).
+
+---
+
+## Implementation Bug (Fixed)
+
+Our initial fix had a bug: we called `embed_table_storage` via `.map()`:
+
+```python
+# WRONG - .map() passes dict batches, not Arrow tables
+shard = shard.map(embed_table_storage, batched=True)
+```
+
+`embed_table_storage` signature: `(table: pyarrow.Table) -> pyarrow.Table`
+
+It expects a full Arrow table, not dictionary batches from `.map()`. This caused
+the process to crash with the same semaphore leak symptom.
+
+**Fix**: Call `embed_table_storage` directly on the Arrow table:
+
+```python
+# CORRECT - pass Arrow table directly
+table = shard._data.table
+embedded_table = embed_table_storage(table)
+pq.write_table(embedded_table, path)
+```
 
 ---
 
