@@ -156,6 +156,34 @@ pq.write_table(embedded_table, path)
 
 ---
 
+## Bug 2: `embed_table_storage` Crashes on Sharded Datasets
+
+Even after fixing Bug 1, a second bug causes crashes on the FIRST shard.
+
+### Symptom
+
+Upload crashes at "Uploading Shards: 0%" with exit code 137 and "semaphore leak" warning.
+
+### Root Cause
+
+When `ds.shard()` or `ds.select()` creates a subset, the resulting Arrow table has internal
+references that cause `embed_table_storage` to crash when processing `Sequence(Nifti())` columns.
+
+### Fix
+
+Convert shard to pandas and recreate the Dataset:
+
+```python
+shard_df = shard.to_pandas()
+fresh_shard = Dataset.from_pandas(shard_df, preserve_index=False)
+fresh_shard = fresh_shard.cast(ds.features)
+# Now embedding works
+```
+
+See [UPSTREAM_BUG_ANALYSIS.md](/UPSTREAM_BUG_ANALYSIS.md) for full details.
+
+---
+
 ## Related
 
 - [Why Uploads Fail](why-uploads-fail.md) - The broader context
