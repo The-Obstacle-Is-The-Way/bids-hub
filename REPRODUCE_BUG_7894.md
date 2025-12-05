@@ -124,7 +124,17 @@ This is why @lhoestq couldn't reproduce with "a nifti file I found online" - the
 | `test_pyarrow_bug_large.py` | Larger synthetic test (still doesn't crash) |
 | `REPRODUCE_BUG_7894.md` | This reproduction guide |
 
-See `main` branch for `UPSTREAM_BUG_ANALYSIS.md` with full investigation notes.
+---
+
+## Note on OOM Bug #7893
+
+We also investigated **Issue #7893** (OOM during `push_to_hub`).
+After extensive testing (uploading 625/902 shards successfully without memory growth), we concluded that #7893 **is NOT reproducible** when `free_memory=True` (default) is used.
+The memory issues we originally observed were likely:
+1. A misdiagnosis of this crash (Bug #7894)
+2. Peak memory spikes during specific shard processing, not accumulation.
+
+**Conclusion:** Bug #7894 (this crash) is the real issue. Bug #7893 is likely invalid.
 
 ---
 
