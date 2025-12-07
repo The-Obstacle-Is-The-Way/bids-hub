@@ -25,6 +25,7 @@
 
 | Phase | Spec File | Description | Blocking? |
 |-------|-----------|-------------|-----------|
+| 00 | `00-isles24-download.md` | Download ISLES24 from Zenodo | **YES** |
 | 01 | `01-isles24-upload.md` | Upload ISLES24 NOW (no refactor) | **YES** |
 | 02 | `02-validation-refactor.md` | Extract generic validation | No |
 | 03 | `03-scripts-reorganize.md` | Namespace scripts by dataset | No |
