@@ -55,3 +55,17 @@ ARC_CONFIG = BidsDatasetConfig(
     bids_root=Path("data/openneuro/ds004884"),  # Default local path
     default_hf_repo="hugging-science/arc-aphasia-bids",
 )
+
+
+# =============================================================================
+# ISLES'24 Dataset Configuration
+#
+# Zenodo: https://zenodo.org/records/17652035
+# License: CC BY-NC-SA 4.0
+# =============================================================================
+
+ISLES24_CONFIG = BidsDatasetConfig(
+    name="isles24",
+    bids_root=Path("data/zenodo/isles24/train"),
+    default_hf_repo="hugging-science/isles24-stroke",
+)
