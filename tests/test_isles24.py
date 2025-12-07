@@ -234,7 +234,11 @@ class TestBuildAndPushISLES24:
             dry_run=True,
         )
 
-        with patch("arc_bids.isles24.build_hf_dataset") as mock_build:
+        with (
+            patch("arc_bids.isles24.build_hf_dataset") as mock_build,
+            patch("arc_bids.isles24.push_dataset_to_hub") as mock_push,
+        ):
             mock_build.return_value = MagicMock()
             build_and_push_isles24(config)
             mock_build.assert_called_once()
+            mock_push.assert_not_called()
