@@ -24,13 +24,61 @@ import typer
 
 from .arc import build_and_push_arc
 from .core import DatasetBuilderConfig
+from .isles24 import build_and_push_isles24
 from .validation import validate_arc_download
 
 app = typer.Typer(
     name="arc-bids",
-    help="Upload the Aphasia Recovery Cohort (ARC) dataset to HuggingFace Hub.",
+    help="Upload neuroimaging datasets (ARC, ISLES24) to HuggingFace Hub.",
     add_completion=False,
 )
+
+# --- ISLES'24 Subcommand Group ---
+isles_app = typer.Typer(help="Commands for the ISLES'24 dataset.")
+app.add_typer(isles_app, name="isles24")
+
+
+@isles_app.command("build")
+def build_isles(
+    bids_root: Path = typer.Argument(
+        ...,
+        help="Path to ISLES'24 BIDS root directory (train/).",
+        exists=False,
+    ),
+    hf_repo: str = typer.Option(
+        "hugging-science/isles24-stroke",
+        "--hf-repo",
+        "-r",
+        help="HuggingFace dataset repo ID.",
+    ),
+    dry_run: bool = typer.Option(
+        True,
+        "--dry-run/--no-dry-run",
+        help="If true (default), build dataset but do not push to Hub.",
+    ),
+) -> None:
+    """
+    Build (and optionally push) the ISLES'24 HF dataset.
+    """
+    config = DatasetBuilderConfig(
+        bids_root=bids_root,
+        hf_repo_id=hf_repo,
+        dry_run=dry_run,
+    )
+
+    typer.echo(f"Processing ISLES'24 dataset from: {bids_root}")
+    typer.echo(f"Target HF repo: {hf_repo}")
+    typer.echo(f"Dry run: {dry_run}")
+
+    build_and_push_isles24(config)
+
+    if dry_run:
+        typer.echo("Dry run complete. Dataset built but not pushed.")
+    else:
+        typer.echo(f"Dataset pushed to: https://huggingface.co/datasets/{hf_repo}")
+
+
+# --- ARC Commands (Top-level for backward compatibility) ---
 
 
 @app.command()
@@ -38,7 +86,7 @@ def build(
     bids_root: Path = typer.Argument(
         ...,
         help="Path to ARC BIDS root directory (ds004884).",
-        exists=False,  # Don't validate existence; may not be downloaded yet
+        exists=False,
     ),
     hf_repo: str = typer.Option(
         "hugging-science/arc-aphasia-bids",
@@ -54,13 +102,6 @@ def build(
 ) -> None:
     """
     Build (and optionally push) the ARC HF dataset.
-
-    Walks the BIDS directory, builds a file table with NIfTI paths and
-    participant metadata, converts to HF Dataset, and optionally pushes
-    to the Hub.
-
-    Example:
-        arc-bids build data/openneuro/ds004884 --dry-run
     """
     config = DatasetBuilderConfig(
         bids_root=bids_root,
