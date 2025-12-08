@@ -45,7 +45,7 @@ uv run bids-hub isles24 info
 
 ### Data Flow
 
-```
+```text
 BIDS Dataset (Local)
         │
         ▼ build_file_table()
@@ -75,6 +75,7 @@ HuggingFace Hub
 ## Dataset Schemas
 
 ### ARC Schema (one row per SESSION)
+
 ```python
 Features({
     "subject_id": Value("string"),    # e.g., "sub-M2001"
@@ -94,6 +95,7 @@ Features({
 ```
 
 ### ISLES24 Schema (one row per SUBJECT, flattened)
+
 ```python
 Features({
     "subject_id": Value("string"),
