@@ -2,15 +2,14 @@
 
 > Status: **PRIORITY** - Do this BEFORE any refactoring
 > Blocking: Yes - This is the immediate deliverable
-> Estimated: 1-2 hours after download completes
 
 ---
 
 ## Goal
 
-Upload ISLES24 dataset to `hugging-science/isles24-stroke` using existing code.
+Upload ISLES24 dataset to `hugging-science/isles24-stroke` using the updated `isles24.py` module.
 
-**No refactoring required.** The current `isles24.py` module is complete.
+**Note:** The `isles24.py` module must be updated to match the actual Zenodo v7 structure before upload.
 
 ---
 
@@ -18,6 +17,7 @@ Upload ISLES24 dataset to `hugging-science/isles24-stroke` using existing code.
 
 - [ ] Download complete (99GB from Zenodo)
 - [ ] Verify extraction completed successfully
+- [ ] `isles24.py` updated to match actual Zenodo v7 structure
 - [ ] HuggingFace authentication (`huggingface-cli login`)
 
 ---
@@ -28,37 +28,36 @@ Upload ISLES24 dataset to `hugging-science/isles24-stroke` using existing code.
 
 ```bash
 # Check the extracted structure
-ls -la data/zenodo/isles24/
+ls -la data/zenodo/isles24/train/
 
-# Expected:
-# train/
-#   ├── participants.tsv
-#   ├── rawdata/
-#   │   └── sub-strokeXXXX/
-#   │       ├── ses-01/  (CT/CTA/CTP)
-#   │       └── ses-02/  (DWI/ADC)
-#   └── derivatives/
-#       ├── perfusion_maps/
-#       ├── lesion_masks/
-#       ├── lvo_masks/
-#       └── cow_segmentations/
-```
+# Expected (actual Zenodo v7):
+# clinical_data-description.xlsx
+# raw_data/
+# derivatives/
+# phenotype/
 
-### 2. Quick Validation (Manual)
-
-```bash
 # Count subjects
-ls data/zenodo/isles24/train/rawdata/ | wc -l
+ls data/zenodo/isles24/train/raw_data/ | wc -l
 # Expected: 149
 
-# Check participants.tsv exists
-cat data/zenodo/isles24/train/participants.tsv | head -5
+# Verify subject naming
+ls data/zenodo/isles24/train/raw_data/ | head -3
+# Expected: sub-stroke0001, sub-stroke0002, sub-stroke0003
 
-# Spot check a subject
-ls -la data/zenodo/isles24/train/rawdata/sub-stroke0001/
+# Verify session naming
+ls data/zenodo/isles24/train/raw_data/sub-stroke0001/
+# Expected: ses-01 (NOT ses-0001!)
+
+# Check derivative structure
+ls data/zenodo/isles24/train/derivatives/sub-stroke0001/
+# Expected: ses-01, ses-02
+
+# Verify filename pattern
+ls data/zenodo/isles24/train/derivatives/sub-stroke0001/ses-01/
+# Expected: *_space-ncct_*.nii.gz files
 ```
 
-### 3. Dry Run Build
+### 2. Dry Run Build
 
 ```bash
 uv run arc-bids isles24 build data/zenodo/isles24/train --dry-run
@@ -68,14 +67,14 @@ Expected output:
 - "Found 149 subjects"
 - "Dry run complete. Dataset built but not pushed."
 
-### 4. Actual Upload
+### 3. Actual Upload
 
 ```bash
 # This will take a while (149 shards, each ~500MB-1GB)
 uv run arc-bids isles24 build data/zenodo/isles24/train --no-dry-run
 ```
 
-### 5. Verify Upload
+### 4. Verify Upload
 
 ```python
 from datasets import load_dataset
@@ -88,21 +87,55 @@ print(example.keys())
 
 ---
 
-## If Structure Differs from Expected
+## Zenodo v7 Structure Reference
 
-The `isles24.py` module was written based on the expected Zenodo structure. If the actual
-structure differs:
+**This is the SSOT** - code must match this exactly:
 
-1. **Inspect actual structure:**
-   ```bash
-   find data/zenodo/isles24/train -type d | head -50
-   find data/zenodo/isles24/train -name "*.nii.gz" | head -20
-   ```
+```
+train/
+├── clinical_data-description.xlsx    # Metadata file (NOT participants.tsv!)
+├── raw_data/                         # NOTE: raw_data (with underscore)
+│   └── sub-stroke0001/               # Subject ID pattern
+│       └── ses-01/                   # Session: ses-01, ses-02 (NOT ses-0001!)
+│           ├── sub-stroke0001_ses-01_ncct.nii.gz
+│           ├── sub-stroke0001_ses-01_cta.nii.gz
+│           ├── sub-stroke0001_ses-01_ctp.nii.gz
+│           └── perfusion-maps/
+│               └── sub-stroke0001_ses-01_*.nii.gz
+├── derivatives/
+│   └── sub-stroke0001/               # Per-subject (NOT per-derivative-type!)
+│       ├── ses-01/
+│       │   ├── perfusion-maps/
+│       │   │   └── sub-stroke0001_ses-01_space-ncct_tmax.nii.gz  # lowercase!
+│       │   ├── sub-stroke0001_ses-01_space-ncct_cta.nii.gz
+│       │   ├── sub-stroke0001_ses-01_space-ncct_ctp.nii.gz
+│       │   ├── sub-stroke0001_ses-01_space-ncct_lvo-msk.nii.gz
+│       │   └── sub-stroke0001_ses-01_space-ncct_cow-msk.nii.gz
+│       └── ses-02/
+│           ├── sub-stroke0001_ses-02_space-ncct_dwi.nii.gz
+│           ├── sub-stroke0001_ses-02_space-ncct_adc.nii.gz
+│           └── sub-stroke0001_ses-02_space-ncct_lesion-msk.nii.gz
+└── phenotype/
+    └── sub-stroke0001/
+        ├── ses-01/
+        └── ses-02/
+```
 
-2. **Update `build_isles24_file_table()` in `src/arc_bids/isles24.py`:**
-   - Adjust directory paths
-   - Adjust glob patterns
-   - Test with dry run
+---
+
+## Required Code Changes in isles24.py
+
+The following must be updated to match Zenodo v7:
+
+| Line | Current | Should Be |
+|------|---------|-----------|
+| ~97 | `rawdata_root = bids_root / "rawdata"` | `raw_data_root = bids_root / "raw_data"` |
+| ~103 | `participants_tsv = bids_root / "participants.tsv"` | Parse `clinical_data-description.xlsx` or phenotype/ |
+| ~121 | `ses01_dir = subject_dir / "ses-01"` | Correct (but verify) |
+| ~124 | `ses01_dir / "ct"` | `ses01_dir` (flat, no ct/ subdir) |
+| ~130 | `derivatives/perfusion_maps/sub-X/...` | `derivatives/sub-X/ses-01/perfusion-maps/` |
+| ~131 | `*_Tmax.nii.gz` | `*_space-ncct_tmax.nii.gz` |
+| ~148 | `derivatives/lesion_masks/sub-X/...` | `derivatives/sub-X/ses-02/` |
 
 ---
 

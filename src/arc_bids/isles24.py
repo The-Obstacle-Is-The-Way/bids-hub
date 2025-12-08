@@ -1,7 +1,7 @@
 """
 ISLES'24 (Ischemic Stroke Lesion Segmentation 2024) dataset module.
 
-This module converts the ISLES'24 BIDS dataset (Zenodo record 17652035) into a
+This module converts the ISLES'24 BIDS dataset (Zenodo record 17652035 v7) into a
 Hugging Face Dataset.
 
 Dataset info:
@@ -14,10 +14,32 @@ Schema Design:
 - One row per SUBJECT (flattened).
 - Acute admission (ses-01) and Follow-up (ses-02) are in the same row.
 - This aligns with the ML task: Input (Acute) -> Target (Follow-up Lesion).
+
+Zenodo v7 Structure (SSOT):
+```
+train/
+├── clinical_data-description.xlsx    # Metadata (NOT participants.tsv!)
+├── raw_data/                         # NOTE: raw_data (with underscore)
+│   └── sub-stroke0001/               # Subject ID pattern
+│       └── ses-01/                   # Session: ses-01, ses-02 (NOT ses-0001!)
+│           ├── sub-stroke0001_ses-01_ncct.nii.gz
+│           └── perfusion-maps/
+├── derivatives/
+│   └── sub-stroke0001/               # Per-subject (NOT per-derivative-type!)
+│       ├── ses-01/
+│       │   ├── perfusion-maps/
+│       │   │   └── *_space-ncct_tmax.nii.gz  # lowercase!
+│       │   └── *_space-ncct_*.nii.gz
+│       └── ses-02/
+│           └── *_space-ncct_*.nii.gz
+└── phenotype/
+    └── sub-stroke0001/
+        ├── ses-01/
+        └── ses-02/
+```
 """
 
 import logging
-from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -29,28 +51,13 @@ from .core import DatasetBuilderConfig, build_hf_dataset, push_dataset_to_hub
 logger = logging.getLogger(__name__)
 
 
-def _get_participant_value(
-    row: "pd.Series[Any]",
-    col: str,
-    type_func: Callable[[Any], Any],
-) -> Any:
-    """Safely extract and convert a value from a participant row."""
-    val = row.get(col)
-    if pd.isna(val):
-        return None
-    try:
-        return type_func(val)
-    except (ValueError, TypeError):
-        return None
-
-
 def _find_single_nifti(search_dir: Path, pattern: str, required: bool = False) -> str | None:
     """
     Find a single NIfTI file matching a pattern in a directory.
 
     Args:
-        search_dir: Directory to search (e.g., sub-01/ses-01/ct).
-        pattern: Glob pattern (e.g., "*_ncct.nii.gz").
+        search_dir: Directory to search.
+        pattern: Glob pattern (e.g., "*_space-ncct_tmax.nii.gz").
         required: If True, log a warning if not found.
 
     Returns:
@@ -61,15 +68,74 @@ def _find_single_nifti(search_dir: Path, pattern: str, required: bool = False) -
             logger.debug("Missing directory: %s", search_dir)
         return None
 
-    matches = list(search_dir.rglob(pattern))
+    matches = list(search_dir.glob(pattern))
     if not matches:
         if required:
             logger.debug("No file matching %s in %s", pattern, search_dir)
         return None
 
-    # Sort to ensure determinism if multiple (though shouldn't happen for single modalities)
+    # Sort to ensure determinism if multiple matches
     matches.sort(key=lambda p: p.name)
     return str(matches[0].resolve())
+
+
+def _load_phenotype_data(phenotype_dir: Path, subject_id: str) -> dict[str, Any]:
+    """
+    Load phenotype data for a subject from the phenotype directory.
+
+    The phenotype directory structure is:
+    phenotype/sub-strokeXXXX/ses-01/  and  phenotype/sub-strokeXXXX/ses-02/
+
+    Args:
+        phenotype_dir: Path to the phenotype directory.
+        subject_id: Subject ID (e.g., "sub-stroke0001").
+
+    Returns:
+        Dictionary with parsed phenotype values.
+    """
+    meta: dict[str, Any] = {
+        "age": None,
+        "sex": None,
+        "nihss_admission": None,
+        "mrs_3month": None,
+        "thrombolysis": None,
+        "thrombectomy": None,
+    }
+
+    subject_pheno_dir = phenotype_dir / subject_id
+    if not subject_pheno_dir.exists():
+        return meta
+
+    # Look for CSV files in ses-01 and ses-02
+    for ses_dir in [subject_pheno_dir / "ses-01", subject_pheno_dir / "ses-02"]:
+        if not ses_dir.exists():
+            continue
+        for csv_file in ses_dir.glob("*.csv"):
+            try:
+                df = pd.read_csv(csv_file)
+                if df.empty:
+                    continue
+                row = df.iloc[0]
+                # Try to extract known columns (flexible matching)
+                for col in df.columns:
+                    col_lower = col.lower()
+                    if "age" in col_lower and meta["age"] is None:
+                        meta["age"] = float(row[col]) if pd.notna(row[col]) else None
+                    elif "sex" in col_lower and meta["sex"] is None:
+                        meta["sex"] = str(row[col]) if pd.notna(row[col]) else None
+                    elif "nihss" in col_lower and meta["nihss_admission"] is None:
+                        meta["nihss_admission"] = float(row[col]) if pd.notna(row[col]) else None
+                    elif "mrs" in col_lower and meta["mrs_3month"] is None:
+                        meta["mrs_3month"] = float(row[col]) if pd.notna(row[col]) else None
+                    elif "thrombolysis" in col_lower and meta["thrombolysis"] is None:
+                        meta["thrombolysis"] = str(row[col]) if pd.notna(row[col]) else None
+                    elif "thrombectomy" in col_lower and meta["thrombectomy"] is None:
+                        meta["thrombectomy"] = str(row[col]) if pd.notna(row[col]) else None
+            except Exception as e:
+                logger.debug("Error reading %s: %s", csv_file, e)
+                continue
+
+    return meta
 
 
 def build_isles24_file_table(bids_root: Path) -> pd.DataFrame:
@@ -79,117 +145,99 @@ def build_isles24_file_table(bids_root: Path) -> pd.DataFrame:
     Walks the directory structure and builds a pandas DataFrame with
     one row per SUBJECT (flattening ses-01 and ses-02).
 
-    Structure:
-    - rawdata/sub-X/ses-01/ (Acute): ct, cta, ctp
-    - rawdata/sub-X/ses-02/ (Follow-up): dwi
-    - derivatives/perfusion_maps/sub-X/ses-01/ (perf): tmax, mtt, cbf, cbv
-    - derivatives/lesion_masks/sub-X/ses-02/ (mask): lesion
-    - derivatives/lvo_masks/sub-X/ses-01/ (mask): lvo (optional)
-    - derivatives/cow_segmentations/sub-X/ses-01/ (mask): cow (optional)
+    Zenodo v7 Structure:
+    - raw_data/sub-strokeXXXX/ses-01/ (Acute): ncct, cta, ctp, perfusion-maps/
+    - derivatives/sub-strokeXXXX/ses-01/ (processed): space-ncct files
+    - derivatives/sub-strokeXXXX/ses-02/ (follow-up): dwi, adc, lesion-msk
+    - phenotype/sub-strokeXXXX/ses-01/ and ses-02/: CSV files
 
     Args:
-        bids_root: Path to the root of the ISLES24 dataset.
+        bids_root: Path to the root of the ISLES24 dataset (e.g., data/zenodo/isles24/train).
 
     Returns:
         DataFrame with one row per subject.
     """
     bids_root = Path(bids_root).resolve()
-    rawdata_root = bids_root / "rawdata"
+
+    # NOTE: Zenodo v7 uses "raw_data" (with underscore), NOT "rawdata"
+    raw_data_root = bids_root / "raw_data"
     derivatives_root = bids_root / "derivatives"
+    phenotype_root = bids_root / "phenotype"
 
-    if not rawdata_root.exists():
-        raise ValueError(f"rawdata directory not found at {rawdata_root}")
-
-    # Read participants.tsv
-    participants_tsv = bids_root / "participants.tsv"
-    if participants_tsv.exists():
-        participants = pd.read_csv(participants_tsv, sep="\t")
-        # Ensure subject_id matches directory names (sub-strokeXXXX)
-        # BIDS spec says participant_id column should have "sub-" prefix
-    else:
-        logger.warning("participants.tsv not found. Clinical metadata will be missing.")
-        participants = pd.DataFrame(columns=["participant_id"])
+    if not raw_data_root.exists():
+        raise ValueError(f"raw_data directory not found at {raw_data_root}")
 
     rows = []
 
-    # Iterate over subjects in rawdata
-    subject_dirs = sorted(rawdata_root.glob("sub-*"))
+    # Iterate over subjects in raw_data
+    subject_dirs = sorted(raw_data_root.glob("sub-*"))
     for subject_dir in subject_dirs:
         subject_id = subject_dir.name  # e.g., "sub-stroke0001"
 
         # --- SESSION 01: ACUTE (CT/CTA/CTP) ---
-        ses01_dir = subject_dir / "ses-01"
+        # Raw data structure: raw_data/sub-X/ses-01/
+        ses01_raw = subject_dir / "ses-01"
 
-        # Raw CTs
-        ncct = _find_single_nifti(ses01_dir / "ct", "*_ncct.nii.gz")
-        cta = _find_single_nifti(ses01_dir / "cta", "*_cta.nii.gz")
-        ctp = _find_single_nifti(ses01_dir / "ctp", "*_ctp.nii.gz")
+        # Raw CTs - files are directly in ses-01/ (NOT in ct/, cta/, ctp/ subdirs)
+        ncct = _find_single_nifti(ses01_raw, "*_ncct.nii.gz")
+        cta = _find_single_nifti(ses01_raw, "*_cta.nii.gz")
+        ctp = _find_single_nifti(ses01_raw, "*_ctp.nii.gz")
 
-        # Perfusion Maps (Derivatives - ses-01)
-        # Path: derivatives/perfusion_maps/sub-X/ses-01/perf/
-        perf_dir = derivatives_root / "perfusion_maps" / subject_id / "ses-01" / "perf"
-        tmax = _find_single_nifti(perf_dir, "*_Tmax.nii.gz")
-        mtt = _find_single_nifti(perf_dir, "*_MTT.nii.gz")
-        cbf = _find_single_nifti(perf_dir, "*_CBF.nii.gz")
-        cbv = _find_single_nifti(perf_dir, "*_CBV.nii.gz")
+        # Note: Raw perfusion maps exist in raw_data/sub-X/ses-01/perfusion-maps/
+        # but we prefer the derivatives (space-ncct registered) versions below
+
+        # --- DERIVATIVES (NCCT-space registered) ---
+        # Structure: derivatives/sub-X/ses-01/ and derivatives/sub-X/ses-02/
+        deriv_subject_dir = derivatives_root / subject_id
+
+        # Session 01 derivatives (perfusion maps, CTA, CTP in NCCT space)
+        ses01_deriv = deriv_subject_dir / "ses-01"
+
+        # Perfusion Maps (space-ncct registered)
+        perf_dir = ses01_deriv / "perfusion-maps"
+        tmax = _find_single_nifti(perf_dir, "*_space-ncct_tmax.nii.gz")
+        mtt = _find_single_nifti(perf_dir, "*_space-ncct_mtt.nii.gz")
+        cbf = _find_single_nifti(perf_dir, "*_space-ncct_cbf.nii.gz")
+        cbv = _find_single_nifti(perf_dir, "*_space-ncct_cbv.nii.gz")
+
+        # CTA and CTP in NCCT space
+        cta_deriv = _find_single_nifti(ses01_deriv, "*_space-ncct_cta.nii.gz")
+        ctp_deriv = _find_single_nifti(ses01_deriv, "*_space-ncct_ctp.nii.gz")
+
+        # LVO and CoW masks
+        lvo_mask = _find_single_nifti(ses01_deriv, "*_space-ncct_lvo-msk.nii.gz")
+        cow_seg = _find_single_nifti(ses01_deriv, "*_space-ncct_cow-msk.nii.gz")
 
         # --- SESSION 02: FOLLOW-UP (MRI) ---
-        ses02_dir = subject_dir / "ses-02"
+        # Structure: derivatives/sub-X/ses-02/
+        ses02_deriv = deriv_subject_dir / "ses-02"
 
-        # Raw MR
-        # Note: DWI/ADC often in 'dwi' folder
-        dwi = _find_single_nifti(ses02_dir / "dwi", "*_dwi.nii.gz")
-        adc = _find_single_nifti(ses02_dir / "dwi", "*_adc.nii.gz")
-
-        # --- DERIVATIVES (MASKS) ---
-
-        # Lesion Mask (ses-02)
-        # Path: derivatives/lesion_masks/sub-X/ses-02/anat/
-        lesion_dir = derivatives_root / "lesion_masks" / subject_id / "ses-02" / "anat"
-        lesion_mask = _find_single_nifti(lesion_dir, "*_msk.nii.gz")
-
-        # LVO Mask (ses-01) - Optional
-        lvo_dir = derivatives_root / "lvo_masks" / subject_id / "ses-01" / "anat"
-        lvo_mask = _find_single_nifti(lvo_dir, "*_msk.nii.gz")
-
-        # CoW Segmentation (ses-01) - Optional
-        cow_dir = derivatives_root / "cow_segmentations" / subject_id / "ses-01" / "anat"
-        cow_seg = _find_single_nifti(cow_dir, "*_msk.nii.gz")
+        dwi = _find_single_nifti(ses02_deriv, "*_space-ncct_dwi.nii.gz")
+        adc = _find_single_nifti(ses02_deriv, "*_space-ncct_adc.nii.gz")
+        lesion_mask = _find_single_nifti(ses02_deriv, "*_space-ncct_lesion-msk.nii.gz")
 
         # --- METADATA ---
-        # Get row from participants dataframe
-        meta = {}
-        if not participants.empty:
-            subj_row = participants[participants["participant_id"] == subject_id]
-            if not subj_row.empty:
-                # Convert relevant columns
-                # Column names based on ISLES24 participants.tsv
-                row_data = subj_row.iloc[0]
-                meta["age"] = _get_participant_value(row_data, "age", float)
-                meta["sex"] = _get_participant_value(row_data, "sex", str)
-                meta["nihss_admission"] = _get_participant_value(row_data, "nihss_admission", float)
-                meta["mrs_3month"] = _get_participant_value(row_data, "mrs_3months", float)
-                meta["thrombolysis"] = _get_participant_value(row_data, "thrombolysis", str)
-                meta["thrombectomy"] = _get_participant_value(row_data, "thrombectomy", str)
+        meta = _load_phenotype_data(phenotype_root, subject_id)
 
         row = {
             "subject_id": subject_id,
-            # Acute
+            # Acute raw (ses-01)
             "ncct": ncct,
-            "cta": cta,
-            "ctp": ctp,
+            "cta": cta if cta else cta_deriv,  # Prefer raw, fallback to derivative
+            "ctp": ctp if ctp else ctp_deriv,
+            # Perfusion Maps (from derivatives, NCCT-space)
             "tmax": tmax,
             "mtt": mtt,
             "cbf": cbf,
             "cbv": cbv,
-            # Follow-up
+            # Follow-up (ses-02, from derivatives)
             "dwi": dwi,
             "adc": adc,
             # Masks
             "lesion_mask": lesion_mask,
             "lvo_mask": lvo_mask,
             "cow_segmentation": cow_seg,
-            # Metadata (defaults to None if missing)
+            # Metadata
             "age": meta.get("age"),
             "sex": meta.get("sex"),
             "nihss_admission": meta.get("nihss_admission"),

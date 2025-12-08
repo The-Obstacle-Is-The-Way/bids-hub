@@ -179,8 +179,8 @@ EXPECTED_COUNTS = {
 }
 
 REQUIRED_FILES = [
-    "participants.tsv",
-    # Note: ISLES24 may not have dataset_description.json (BIDS-ish)
+    "clinical_data-description.xlsx",  # NOTE: NOT participants.tsv!
+    # Note: ISLES24 uses xlsx metadata, not standard BIDS participants.tsv
 ]
 
 def validate_isles24_download(

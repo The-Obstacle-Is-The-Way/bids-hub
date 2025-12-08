@@ -103,43 +103,58 @@ echo "  2. Upload: uv run arc-bids isles24 build ${TARGET_DIR}/train --no-dry-ru
 
 ## Directory Structure After Download
 
+This is the **actual Zenodo v7 structure** (verified from extracted data):
+
 ```
 data/zenodo/isles24/
 ├── train.7z              # 99GB compressed archive
-└── train/                # Extracted BIDS structure
-    ├── raw_data/
-    │   └── sub-strokecase0001/
-    │       └── ses-0001/
-    │           ├── sub-strokecase0001_ses-0001_ncct.nii.gz
-    │           ├── sub-strokecase0001_ses-0001_cta.nii.gz
-    │           ├── sub-strokecase0001_ses-0001_ctp.nii.gz
+└── train/                # Extracted structure
+    ├── clinical_data-description.xlsx   # Metadata (NOT participants.tsv!)
+    ├── raw_data/                        # NOTE: raw_data NOT rawdata
+    │   └── sub-stroke0001/              # Subject naming: sub-stroke0001
+    │       └── ses-01/                  # Session naming: ses-01 (NOT ses-0001!)
+    │           ├── sub-stroke0001_ses-01_ncct.nii.gz
+    │           ├── sub-stroke0001_ses-01_cta.nii.gz
+    │           ├── sub-stroke0001_ses-01_ctp.nii.gz
     │           └── perfusion-maps/
-    │               ├── sub-strokecase0001_ses-0001_tmax.nii.gz
-    │               ├── sub-strokecase0001_ses-0001_mtt.nii.gz
-    │               ├── sub-strokecase0001_ses-0001_cbf.nii.gz
-    │               └── sub-strokecase0001_ses-0001_cbv.nii.gz
-    ├── derivatives/
-    │   └── sub-strokecase0001/
-    │       ├── ses-0001/
+    │               ├── sub-stroke0001_ses-01_tmax.nii.gz
+    │               ├── sub-stroke0001_ses-01_mtt.nii.gz
+    │               ├── sub-stroke0001_ses-01_cbf.nii.gz
+    │               └── sub-stroke0001_ses-01_cbv.nii.gz
+    ├── derivatives/                     # Per-subject structure
+    │   └── sub-stroke0001/
+    │       ├── ses-01/
     │       │   ├── perfusion-maps/
-    │       │   │   ├── sub-strokecase0001_ses-0001_space-ncct_tmax.nii.gz
-    │       │   │   ├── sub-strokecase0001_ses-0001_space-ncct_mtt.nii.gz
-    │       │   │   ├── sub-strokecase0001_ses-0001_space-ncct_cbf.nii.gz
-    │       │   │   └── sub-strokecase0001_ses-0001_space-ncct_cbv.nii.gz
-    │       │   ├── sub-strokecase0001_ses-0001_space-ncct_cta.nii.gz
-    │       │   ├── sub-strokecase0001_ses-0001_space-ncct_ctp.nii.gz
-    │       │   ├── sub-strokecase0001_ses-0001_space-ncct_lvo-msk.nii.gz
-    │       │   └── sub-strokecase0001_ses-0001_space-ncct_cow-msk.nii.gz
-    │       └── ses-0002/
-    │           ├── sub-strokecase0001_ses-02_space-ncct_dwi.nii.gz
-    │           ├── sub-strokecase0001_ses-02_space-ncct_adc.nii.gz
-    │           └── sub-strokecase0001_ses-02_space-ncct_lesion-msk.nii.gz
-    └── phenotype/
-        ├── ses-0001/
-        │   └── sub-strokecase0001_ses-0001_demographic_baseline.csv
-        └── ses-0002/
-            └── sub-strokecase0001_ses-0001_outcome.csv
+    │       │   │   ├── sub-stroke0001_ses-01_space-ncct_tmax.nii.gz
+    │       │   │   ├── sub-stroke0001_ses-01_space-ncct_mtt.nii.gz
+    │       │   │   ├── sub-stroke0001_ses-01_space-ncct_cbf.nii.gz
+    │       │   │   └── sub-stroke0001_ses-01_space-ncct_cbv.nii.gz
+    │       │   ├── sub-stroke0001_ses-01_space-ncct_cta.nii.gz
+    │       │   ├── sub-stroke0001_ses-01_space-ncct_ctp.nii.gz
+    │       │   ├── sub-stroke0001_ses-01_space-ncct_lvo-msk.nii.gz
+    │       │   └── sub-stroke0001_ses-01_space-ncct_cow-msk.nii.gz
+    │       └── ses-02/
+    │           ├── sub-stroke0001_ses-02_space-ncct_dwi.nii.gz
+    │           ├── sub-stroke0001_ses-02_space-ncct_adc.nii.gz
+    │           └── sub-stroke0001_ses-02_space-ncct_lesion-msk.nii.gz
+    └── phenotype/                       # Per-subject phenotype
+        └── sub-stroke0001/
+            ├── ses-01/
+            └── ses-02/
 ```
+
+---
+
+## Key Naming Conventions (SSOT)
+
+| Component | Actual Value | Common Mistake |
+|-----------|--------------|----------------|
+| Raw folder | `raw_data/` | `rawdata/` |
+| Session dirs | `ses-01`, `ses-02` | `ses-0001`, `ses-0002` |
+| Subject ID | `sub-stroke0001` | `sub-strokecase0001` |
+| Metadata | `clinical_data-description.xlsx` | `participants.tsv` |
+| Derivatives | `derivatives/sub-X/ses-Y/` | `derivatives/type/sub-X/` |
+| Perfusion files | `*_space-ncct_tmax.nii.gz` | `*_Tmax.nii.gz` |
 
 ---
 

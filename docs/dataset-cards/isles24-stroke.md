@@ -30,8 +30,8 @@ Multi-center longitudinal multimodal acute ischemic stroke training dataset from
 ## Overview
 
 149 acute ischemic stroke training cases with:
-- **Admission imaging (ses-0001):** Non-contrast CT, CT angiography, 4D CT perfusion
-- **Follow-up imaging (ses-0002):** Post-treatment MRI (DWI, ADC)
+- **Admission imaging (ses-01):** Non-contrast CT, CT angiography, 4D CT perfusion
+- **Follow-up imaging (ses-02):** Post-treatment MRI (DWI, ADC)
 - **Clinical data:** Demographics, patient history, admission NIHSS, 3-month mRS outcomes
 - **Annotations:** Infarct masks, large vessel occlusion masks, Circle of Willis anatomy
 
@@ -43,15 +43,15 @@ Multi-center longitudinal multimodal acute ischemic stroke training dataset from
 
 | Session | Modality | Description |
 |---------|----------|-------------|
-| ses-0001 (Acute) | `ncct` | Non-contrast CT |
-| ses-0001 (Acute) | `cta` | CT Angiography |
-| ses-0001 (Acute) | `ctp` | 4D CT Perfusion time series |
-| ses-0001 (Acute) | `tmax` | Time-to-maximum perfusion map |
-| ses-0001 (Acute) | `mtt` | Mean transit time map |
-| ses-0001 (Acute) | `cbf` | Cerebral blood flow map |
-| ses-0001 (Acute) | `cbv` | Cerebral blood volume map |
-| ses-0002 (Follow-up) | `dwi` | Diffusion-weighted MRI |
-| ses-0002 (Follow-up) | `adc` | Apparent diffusion coefficient |
+| ses-01 (Acute) | `ncct` | Non-contrast CT |
+| ses-01 (Acute) | `cta` | CT Angiography |
+| ses-01 (Acute) | `ctp` | 4D CT Perfusion time series |
+| ses-01 (Acute) | `tmax` | Time-to-maximum perfusion map |
+| ses-01 (Acute) | `mtt` | Mean transit time map |
+| ses-01 (Acute) | `cbf` | Cerebral blood flow map |
+| ses-01 (Acute) | `cbv` | Cerebral blood volume map |
+| ses-02 (Follow-up) | `dwi` | Diffusion-weighted MRI |
+| ses-02 (Follow-up) | `adc` | Apparent diffusion coefficient |
 
 ### Derivative Masks
 
@@ -63,7 +63,7 @@ Multi-center longitudinal multimodal acute ischemic stroke training dataset from
 
 ### Clinical Variables
 
-Clinical variables are sourced from the BIDS `phenotype/` tables:
+Clinical variables are sourced from the `phenotype/` directory and `clinical_data-description.xlsx`:
 
 | Variable | Description |
 |----------|-------------|
@@ -80,7 +80,7 @@ ds = load_dataset("hugging-science/isles24-stroke", split="train")
 
 # Access a subject
 example = ds[0]
-print(example["subject_id"])      # "sub-strokecase0001"
+print(example["subject_id"])      # "sub-stroke0001"
 print(example["ncct"])            # Non-contrast CT array
 print(example["dwi"])             # Diffusion-weighted MRI
 print(example["lesion_mask"])     # Ground truth segmentation
@@ -89,43 +89,42 @@ print(example["nihss_admission"]) # Stroke severity score
 
 ## Data Organization
 
-The source data follows BIDS structure. Filenames shown are illustrative and follow the BIDS naming pattern used in the archive:
+The source data follows BIDS structure. This tree shows the actual Zenodo v7 layout:
 
 ```
-raw_data/
-└── sub-strokecase0001/
-    └── ses-0001/
-        ├── sub-strokecase0001_ses-0001_ncct.nii.gz
-        ├── sub-strokecase0001_ses-0001_cta.nii.gz
-        ├── sub-strokecase0001_ses-0001_ctp.nii.gz
-        └── perfusion-maps/
-            ├── sub-strokecase0001_ses-0001_tmax.nii.gz
-            ├── sub-strokecase0001_ses-0001_mtt.nii.gz
-            ├── sub-strokecase0001_ses-0001_cbf.nii.gz
-            └── sub-strokecase0001_ses-0001_cbv.nii.gz
-
-derivatives/
-└── sub-strokecase0001/
-    ├── ses-0001/
-    │   ├── perfusion-maps/
-    │   │   ├── sub-strokecase0001_ses-0001_space-ncct_tmax.nii.gz
-    │   │   ├── sub-strokecase0001_ses-0001_space-ncct_mtt.nii.gz
-    │   │   ├── sub-strokecase0001_ses-0001_space-ncct_cbf.nii.gz
-    │   │   └── sub-strokecase0001_ses-0001_space-ncct_cbv.nii.gz
-    │   ├── sub-strokecase0001_ses-0001_space-ncct_cta.nii.gz
-    │   ├── sub-strokecase0001_ses-0001_space-ncct_ctp.nii.gz
-    │   ├── sub-strokecase0001_ses-0001_space-ncct_lvo-msk.nii.gz
-    │   └── sub-strokecase0001_ses-0001_space-ncct_cow-msk.nii.gz
-    └── ses-0002/
-        ├── sub-strokecase0001_ses-02_space-ncct_dwi.nii.gz
-        ├── sub-strokecase0001_ses-02_space-ncct_adc.nii.gz
-        └── sub-strokecase0001_ses-02_space-ncct_lesion-msk.nii.gz
-
-phenotype/
-├── ses-0001/
-│   └── sub-strokecase0001_ses-0001_demographic_baseline.csv
-└── ses-0002/
-    └── sub-strokecase0001_ses-0001_outcome.csv
+train/
+├── clinical_data-description.xlsx
+├── raw_data/
+│   └── sub-stroke0001/
+│       └── ses-01/
+│           ├── sub-stroke0001_ses-01_ncct.nii.gz
+│           ├── sub-stroke0001_ses-01_cta.nii.gz
+│           ├── sub-stroke0001_ses-01_ctp.nii.gz
+│           └── perfusion-maps/
+│               ├── sub-stroke0001_ses-01_tmax.nii.gz
+│               ├── sub-stroke0001_ses-01_mtt.nii.gz
+│               ├── sub-stroke0001_ses-01_cbf.nii.gz
+│               └── sub-stroke0001_ses-01_cbv.nii.gz
+├── derivatives/
+│   └── sub-stroke0001/
+│       ├── ses-01/
+│       │   ├── perfusion-maps/
+│       │   │   ├── sub-stroke0001_ses-01_space-ncct_tmax.nii.gz
+│       │   │   ├── sub-stroke0001_ses-01_space-ncct_mtt.nii.gz
+│       │   │   ├── sub-stroke0001_ses-01_space-ncct_cbf.nii.gz
+│       │   │   └── sub-stroke0001_ses-01_space-ncct_cbv.nii.gz
+│       │   ├── sub-stroke0001_ses-01_space-ncct_cta.nii.gz
+│       │   ├── sub-stroke0001_ses-01_space-ncct_ctp.nii.gz
+│       │   ├── sub-stroke0001_ses-01_space-ncct_lvo-msk.nii.gz
+│       │   └── sub-stroke0001_ses-01_space-ncct_cow-msk.nii.gz
+│       └── ses-02/
+│           ├── sub-stroke0001_ses-02_space-ncct_dwi.nii.gz
+│           ├── sub-stroke0001_ses-02_space-ncct_adc.nii.gz
+│           └── sub-stroke0001_ses-02_space-ncct_lesion-msk.nii.gz
+└── phenotype/
+    └── sub-stroke0001/
+        ├── ses-01/
+        └── ses-02/
 ```
 
 ## Citation
