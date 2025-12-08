@@ -53,7 +53,7 @@ HF Hub (via XET storage)
 |--------|---------|
 | `src/bids_hub/core.py` | Generic BIDS→HF Dataset conversion |
 | `src/bids_hub/arc.py` | ARC dataset builder (file table + HF features) |
-| `src/bids_hub/validation.py` | Download integrity validation |
+| `src/bids_hub/validation/` | Download integrity validation (ARC + ISLES24) |
 | `src/bids_hub/cli.py` | Typer CLI |
 | `scripts/download_arc.sh` | Download ARC from OpenNeuro |
 
@@ -79,11 +79,15 @@ uv run bids-hub info
 # Download ARC dataset
 ./scripts/download_arc.sh
 
+# Download ISLES24 dataset
+./scripts/download_isles24.sh
+
 # Validate download integrity
-uv run bids-hub validate data/openneuro/ds004884
+uv run bids-hub arc validate data/openneuro/ds004884
+uv run bids-hub isles24 validate data/zenodo/isles24/train
 
 # Build dataset (dry run):
-uv run bids-hub build data/openneuro/ds004884 --dry-run
+uv run bids-hub arc build data/openneuro/ds004884 --dry-run
 ```
 
 ## Downloading ARC
@@ -118,7 +122,7 @@ openneuro download ds004884 data/openneuro/ds004884
 Before pushing to HuggingFace, validate your download to ensure data integrity:
 
 ```bash
-uv run bids-hub validate data/openneuro/ds004884
+uv run bids-hub arc validate data/openneuro/ds004884
 ```
 
 This checks:
@@ -132,7 +136,7 @@ This checks:
 For optional BIDS validator integration (slower but more thorough):
 
 ```bash
-uv run bids-hub validate data/openneuro/ds004884 --bids-validator
+uv run bids-hub arc validate data/openneuro/ds004884 --bids-validator
 ```
 
 ## Project Structure
@@ -144,11 +148,11 @@ arc-aphasia-bids/
 │   ├── core.py          # Generic BIDS→HF logic
 │   ├── config.py        # ARC configuration
 │   ├── arc.py           # ARC dataset builder
-│   ├── validation.py    # Download integrity checks
+│   ├── validation/      # Download integrity checks
 │   └── cli.py           # Typer CLI
 ├── scripts/
-│   ├── download_arc.sh  # Download script
-│   └── validate_download.py  # Standalone validation
+│   ├── download_arc.sh      # Download ARC script
+│   └── download_isles24.sh  # Download ISLES24 script
 ├── tests/
 │   ├── test_arc.py          # ARC module tests
 │   ├── test_core_nifti.py   # Core functionality tests
@@ -207,10 +211,10 @@ data = img.get_fdata()  # Convert to numpy array
 uv run bids-hub info
 
 # Build dataset (dry run - won't push to Hub)
-uv run bids-hub build data/openneuro/ds004884 --dry-run
+uv run bids-hub arc build data/openneuro/ds004884 --dry-run
 
 # Build and push to Hub
-uv run bids-hub build data/openneuro/ds004884 --no-dry-run
+uv run bids-hub arc build data/openneuro/ds004884 --no-dry-run
 ```
 
 ## Development
