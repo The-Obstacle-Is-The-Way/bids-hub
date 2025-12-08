@@ -1,167 +1,119 @@
 # CLI Reference
 
-> Command-line interface for arc-bids.
+> Command-line interface for bids-hub.
 
 ---
 
 ## Installation
 
 ```bash
-uv add arc-bids
+uv add bids-hub
 # or
-pip install arc-bids
+pip install bids-hub
 ```
 
 ---
 
-## Commands
+## Global Commands
 
-### `arc-bids build`
+### `bids-hub --help`
 
-Build and upload a BIDS dataset to HuggingFace Hub.
+Show the help message and available subcommands.
 
-```bash
-arc-bids build <bids_root> --hf-repo <repo_id> [options]
-```
+### `bids-hub list`
 
-#### Arguments
-
-| Argument | Description |
-|----------|-------------|
-| `bids_root` | Path to the BIDS dataset root directory |
-
-#### Options
-
-| Option | Default | Description |
-|--------|---------|-------------|
-| `--hf-repo`, `-r` | `hugging-science/arc-aphasia-bids` | HuggingFace repo ID (e.g., `org/dataset-name`) |
-| `--dry-run` | `True` | Build dataset locally without pushing to Hub |
-| `--no-dry-run` | - | Explicitly disable dry run (push to Hub) |
-
-#### Examples
+List all supported datasets.
 
 ```bash
-# Dry run (build locally, don't upload)
-arc-bids build data/openneuro/ds004884 --hf-repo hugging-science/arc-aphasia-bids
-
-# Full upload
-arc-bids build data/openneuro/ds004884 --hf-repo hugging-science/arc-aphasia-bids --no-dry-run
+bids-hub list
 ```
 
-#### Output
-
+**Output:**
 ```text
-Processing ARC dataset from: data/openneuro/ds004884
-Target HF repo: hugging-science/arc-aphasia-bids
-Dry run: False
-Building file table...
-File table has 902 rows
-Building HF dataset...
-Pushing to Hub with num_shards=902 to prevent OOM
-Uploading the dataset shards:   5%|█▌        | 45/902 [02:15<42:30, 3.0s/shard]
+Supported datasets:
+  arc     - Aphasia Recovery Cohort (OpenNeuro ds004884)
+  isles24 - ISLES 2024 Stroke (Zenodo)
 ```
 
 ---
 
-### `arc-bids validate`
+## ARC Commands
 
-Validate an ARC dataset download before pushing to HuggingFace.
+### `bids-hub arc build`
+
+Build and upload the ARC dataset to HuggingFace Hub.
 
 ```bash
-arc-bids validate <bids_root> [options]
+bids-hub arc build <bids_root> [options]
 ```
 
-#### Arguments
+**Arguments:**
+- `bids_root`: Path to the ARC BIDS dataset root (ds004884).
 
-| Argument | Description |
-|----------|-------------|
-| `bids_root` | Path to the BIDS dataset root directory |
+**Options:**
+- `--hf-repo`, `-r`: HuggingFace repo ID. Default: `hugging-science/arc-aphasia-bids`
+- `--dry-run`: Build dataset locally without pushing to Hub. Default: `True`
+- `--no-dry-run`: Explicitly disable dry run (push to Hub).
 
-#### Options
+**Example:**
+```bash
+bids-hub arc build data/openneuro/ds004884 --no-dry-run
+```
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `--bids-validator/--no-bids-validator` | `False` | Run external BIDS validator (requires npx, slow) |
-| `--sample-size`, `-n` | `10` | Number of NIfTI files to spot-check for integrity |
-| `--tolerance`, `-t` | `0.0` | Allowed fraction of missing files (0.0 to 1.0). Default is strict (0.0) |
+### `bids-hub arc validate`
 
-#### Validation Checks
-
-1. Required BIDS files exist (`dataset_description.json`, `participants.tsv`)
-2. Subject count matches expected (~230 from Sci Data paper)
-3. Series counts match paper (T1w, T2w, FLAIR, BOLD, DWI, sbref, lesion)
-4. Sample NIfTI files are loadable with nibabel
-5. (Optional) External BIDS validator passes
-
-#### Example
+Validate an ARC dataset download.
 
 ```bash
-# Basic validation (strict - no missing files allowed)
-arc-bids validate data/openneuro/ds004884
-
-# With NIfTI integrity check on 20 files
-arc-bids validate data/openneuro/ds004884 --sample-size 20
-
-# Allow up to 10% missing files (useful for partial downloads)
-arc-bids validate data/openneuro/ds004884 --tolerance 0.1
-
-# With external BIDS validator (slow)
-arc-bids validate data/openneuro/ds004884 --bids-validator
+bids-hub arc validate <bids_root> [options]
 ```
+
+**Options:**
+- `--bids-validator/--no-bids-validator`: Run external BIDS validator. Default: `False`
+- `--sample-size`, `-n`: Number of NIfTI files to spot-check. Default: `10`
+- `--tolerance`, `-t`: Allowed fraction of missing files. Default: `0.0`
+
+### `bids-hub arc info`
+
+Show information about the ARC dataset (size, modalities, source).
 
 ---
 
-### `arc-bids info`
+## ISLES24 Commands
 
-Show information about the ARC dataset.
+### `bids-hub isles24 build`
+
+Build and upload the ISLES24 dataset to HuggingFace Hub.
 
 ```bash
-arc-bids info
+bids-hub isles24 build <bids_root> [options]
 ```
 
-#### Output
+**Arguments:**
+- `bids_root`: Path to the ISLES'24 dataset root (train/).
 
-```text
-Aphasia Recovery Cohort (ARC)
-========================================
-OpenNeuro ID: ds004884
-URL: https://openneuro.org/datasets/ds004884
-License: CC0 (Public Domain)
+**Options:**
+- `--hf-repo`, `-r`: HuggingFace repo ID. Default: `hugging-science/isles24-stroke`
+- `--dry-run`: Build dataset locally without pushing to Hub. Default: `True`
+- `--no-dry-run`: Explicitly disable dry run (push to Hub).
 
-Contains:
-  - 230 chronic stroke patients
-  - 902 scanning sessions
-  - T1w, T2w, FLAIR, diffusion, fMRI
-  - Expert lesion masks
-  - WAB (Western Aphasia Battery) scores
-
-Expected series counts (from Sci Data paper):
-  - T1w: 441 series
-  - T2w: 447 series
-  - FLAIR: 235 series
-  - Lesion masks: 230
+**Example:**
+```bash
+bids-hub isles24 build data/zenodo/isles24/train --no-dry-run
 ```
 
----
+### `bids-hub isles24 validate`
 
-## Environment Variables
+Validate an ISLES24 dataset download.
 
-| Variable | Description |
-|----------|-------------|
-| `HF_TOKEN` | HuggingFace API token (alternative to `huggingface-cli login`) |
+```bash
+bids-hub isles24 validate <bids_root> [options]
+```
 
----
+**Options:**
+- `--sample-size`, `-n`: Number of NIfTI files to spot-check. Default: `10`
+- `--tolerance`, `-t`: Allowed fraction of missing files. Default: `0.1` (10%)
 
-## Exit Codes
+### `bids-hub isles24 info`
 
-| Code | Meaning |
-|------|---------|
-| 0 | Success |
-| 1 | Error (check stderr for details) |
-
----
-
-## Related
-
-- [Tutorial: First Upload](../tutorials/first-upload.md)
-- [Python API](api.md)
+Show information about the ISLES'24 dataset.

@@ -278,13 +278,13 @@ mv docs/tutorials/first-upload.md docs/tutorials/upload-arc.md
 
 ## Success Criteria
 
-- [ ] Dataset cards exist and are complete
-- [ ] Index reflects multi-dataset support
-- [ ] CLI reference updated
-- [ ] Schema reference updated
-- [ ] Tutorials for both datasets
-- [ ] No broken internal links
-- [ ] No stale ARC-only language
+- [x] Dataset cards exist and are complete
+- [x] Index reflects multi-dataset support
+- [x] CLI reference updated
+- [x] Schema reference updated
+- [x] Tutorials for both datasets
+- [x] No broken internal links
+- [x] No stale ARC-only language
 
 ---
 
