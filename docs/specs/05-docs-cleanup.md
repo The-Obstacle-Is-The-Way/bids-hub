@@ -218,7 +218,7 @@ mv docs/huggingface-dataset-card.md docs/dataset-cards/arc-aphasia-bids.md
 **`docs/index.md`**
 
 ```markdown
-# arc-bids Documentation
+# bids-hub Documentation
 
 Upload BIDS neuroimaging datasets to HuggingFace Hub.
 
@@ -237,10 +237,10 @@ Upload BIDS neuroimaging datasets to HuggingFace Hub.
 ./scripts/arc/download.sh
 
 # Validate
-uv run arc-bids validate data/openneuro/ds004884
+uv run bids-hub arc validate data/openneuro/ds004884
 
 # Upload
-uv run arc-bids build data/openneuro/ds004884 --no-dry-run
+uv run bids-hub arc build data/openneuro/ds004884 --no-dry-run
 \`\`\`
 
 ### ISLES24 Dataset
@@ -249,10 +249,10 @@ uv run arc-bids build data/openneuro/ds004884 --no-dry-run
 ./scripts/isles24/download.sh
 
 # Validate
-uv run arc-bids isles24 validate data/zenodo/isles24/train
+uv run bids-hub isles24 validate data/zenodo/isles24/train
 
 # Upload
-uv run arc-bids isles24 build data/zenodo/isles24/train --no-dry-run
+uv run bids-hub isles24 build data/zenodo/isles24/train --no-dry-run
 \`\`\`
 ```
 

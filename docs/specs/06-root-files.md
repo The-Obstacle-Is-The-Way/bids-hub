@@ -26,14 +26,14 @@ Update root-level files to reflect multi-dataset support and new structure.
 ### Step 1: Update README.md
 
 Key changes:
-- Title: "arc-bids" → "BIDS to HuggingFace Uploader" (or keep for now)
+- Title: "arc-bids" → "bids-hub" (already renamed in Phase 01a)
 - Add ISLES24 to supported datasets table
 - Update quick start with both datasets
 - Update architecture diagram
 - Add links to both HF repos
 
 ```markdown
-# arc-bids
+# bids-hub
 
 Upload BIDS neuroimaging datasets to HuggingFace Hub.
 
@@ -49,25 +49,25 @@ Upload BIDS neuroimaging datasets to HuggingFace Hub.
 ### ARC Dataset
 \`\`\`bash
 # Validate local download
-uv run arc-bids validate data/openneuro/ds004884
+uv run bids-hub arc validate data/openneuro/ds004884
 
 # Upload to HuggingFace
-uv run arc-bids build data/openneuro/ds004884 --no-dry-run
+uv run bids-hub arc build data/openneuro/ds004884 --no-dry-run
 \`\`\`
 
 ### ISLES24 Dataset
 \`\`\`bash
 # Validate local download
-uv run arc-bids isles24 validate data/zenodo/isles24/train
+uv run bids-hub isles24 validate data/zenodo/isles24/train
 
 # Upload to HuggingFace
-uv run arc-bids isles24 build data/zenodo/isles24/train --no-dry-run
+uv run bids-hub isles24 build data/zenodo/isles24/train --no-dry-run
 \`\`\`
 
 ## Architecture
 
 \`\`\`
-src/arc_bids/
+src/bids_hub/
 ├── core/           # Generic BIDS→HF utilities (upstream candidate)
 ├── datasets/       # Per-dataset modules (ARC, ISLES24)
 ├── validation/     # Per-dataset validation
@@ -90,13 +90,13 @@ Key changes:
 
 \`\`\`bash
 # ARC commands
-uv run arc-bids validate data/openneuro/ds004884
-uv run arc-bids build data/openneuro/ds004884 --dry-run
-uv run arc-bids info
+uv run bids-hub arc validate data/openneuro/ds004884
+uv run bids-hub arc build data/openneuro/ds004884 --dry-run
+uv run bids-hub arc info
 
 # ISLES24 commands
-uv run arc-bids isles24 validate data/zenodo/isles24/train
-uv run arc-bids isles24 build data/zenodo/isles24/train --dry-run
+uv run bids-hub isles24 validate data/zenodo/isles24/train
+uv run bids-hub isles24 build data/zenodo/isles24/train --dry-run
 \`\`\`
 
 ## Architecture
@@ -118,13 +118,13 @@ uv run arc-bids isles24 build data/zenodo/isles24/train --dry-run
 ### Step 3: Update pyproject.toml
 
 Key changes:
+- Package already renamed in Phase 01a
 - Update description
 - Add ISLES24 keywords
-- Keep name as `arc-bids` for now (rename in Phase 07)
 
 ```toml
 [project]
-name = "arc-bids"
+name = "bids-hub"
 version = "0.2.0"  # Bump version
 description = "Upload BIDS neuroimaging datasets (ARC, ISLES24) to HuggingFace Hub"
 keywords = [
