@@ -23,9 +23,9 @@ from pathlib import Path
 
 import typer
 
-from .arc import build_and_push_arc
 from .core import DatasetBuilderConfig
-from .isles24 import build_and_push_isles24
+from .datasets.arc import build_and_push_arc
+from .datasets.isles24 import build_and_push_isles24
 from .validation import validate_arc_download, validate_isles24_download
 
 app = typer.Typer(
