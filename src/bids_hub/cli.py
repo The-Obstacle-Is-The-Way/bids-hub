@@ -1,5 +1,5 @@
 """
-Command-line interface for uploading ARC dataset to HuggingFace Hub.
+Command-line interface for uploading BIDS datasets to HuggingFace Hub.
 
 Usage:
     # Show help
@@ -10,8 +10,7 @@ Usage:
     bids-hub arc build data/openneuro/ds004884 --dry-run
     bids-hub arc info
 
-    # ISLES24 Commands
-    bids-hub isles24 validate data/zenodo/isles24/train
+    # ISLES24 Commands (validate coming in Phase 02)
     bids-hub isles24 build data/zenodo/isles24/train --dry-run
     bids-hub isles24 info
 

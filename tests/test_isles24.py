@@ -36,26 +36,28 @@ def _create_minimal_nifti(path: Path) -> None:
 def synthetic_isles24_root() -> Generator[Path, None, None]:
     """Create a synthetic ISLES'24 dataset for testing.
 
-    Structure:
+    Structure (flattened ISLES24 layout):
         isles24_train/
-        ── participants.tsv
-        ── rawdata/
-        ── ─ sub-stroke0001/
-        ── ─ ─ ses-01/ (Acute)
-        ── ─ ─ ─ ct/  -> *_ncct.nii.gz
-        ── ─ ─ ─ cta/ -> *_cta.nii.gz
-        ── ─ ─ ─ ctp/ -> *_ctp.nii.gz
-        ── ─ ─ ses-02/ (Follow-up)
-        ── ─ ─ ─ dwi/ -> *_dwi.nii.gz, *_adc.nii.gz
-        ── ─ sub-stroke0002/
-        ── ─ ─ ... (partial data)
-        ── derivatives/
-        ── ─ perfusion_maps/
-        ── ─ ─ sub-stroke0001/ses-01/perf/ -> *_Tmax, *_MTT, *_CBF, *_CBV
-        ── ─ lesion_masks/
-        ── ─ ─ sub-stroke0001/ses-02/anat/ -> *_msk.nii.gz
-        ── ─ lvo_masks/
-        ── ─ ─ sub-stroke0001/ses-01/anat/ -> *_msk.nii.gz
+        ├── participants.tsv
+        ├── raw_data/
+        │   ├── sub-stroke0001/
+        │   │   └── ses-01/
+        │   │       ├── {sub}_ses-01_ncct.nii.gz
+        │   │       ├── {sub}_ses-01_cta.nii.gz
+        │   │       └── {sub}_ses-01_ctp.nii.gz
+        │   └── sub-stroke0002/
+        │       └── ses-01/ (partial - missing CTP)
+        └── derivatives/
+            └── sub-stroke0001/
+                ├── ses-01/
+                │   ├── perfusion-maps/
+                │   │   └── {sub}_space-ncct_{tmax,mtt,cbf,cbv}.nii.gz
+                │   ├── {sub}_space-ncct_lvo-msk.nii.gz
+                │   └── {sub}_space-ncct_cow-msk.nii.gz
+                └── ses-02/
+                    ├── {sub}_space-ncct_dwi.nii.gz
+                    ├── {sub}_space-ncct_adc.nii.gz
+                    └── {sub}_space-ncct_lesion-msk.nii.gz
     """
     with tempfile.TemporaryDirectory() as tmpdir:
         root = Path(tmpdir) / "isles24_train"
