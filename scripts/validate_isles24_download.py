@@ -112,30 +112,32 @@ def check_zero_byte_files(bids_root: Path) -> tuple[int, list[str]]:
 
 def check_phenotype_readable(phenotype_dir: Path) -> tuple[bool, str]:
     """
-    Spot-check that phenotype CSVs are readable.
+    Spot-check that phenotype XLSX files are readable.
+
+    Note: Zenodo v7 uses .xlsx files, not .csv.
 
     Returns:
         (passed, message)
     """
     if not phenotype_dir.exists():
-        return True, "⚠️  phenotype/ directory not found (skipping CSV check)"
+        return True, "⚠️  phenotype/ directory not found (skipping check)"
 
-    # Find first CSV file
-    csv_files = list(phenotype_dir.rglob("*.csv"))
-    if not csv_files:
-        return True, "⚠️  No CSV files found in phenotype/ (may be OK)"
+    # Find first XLSX file (Zenodo v7 uses xlsx, not csv)
+    xlsx_files = list(phenotype_dir.rglob("*.xlsx"))
+    if not xlsx_files:
+        return True, "⚠️  No XLSX files found in phenotype/ (may be OK)"
 
     try:
         import pandas as pd
 
-        sample_csv = csv_files[0]
-        df = pd.read_csv(sample_csv)
+        sample_xlsx = xlsx_files[0]
+        df = pd.read_excel(sample_xlsx)
         if len(df) > 0:
-            return True, f"✅ Phenotype CSV readable: {sample_csv.name} ({len(df)} rows)"
+            return True, f"✅ Phenotype XLSX readable: {sample_xlsx.name} ({len(df)} rows)"
         else:
-            return True, f"⚠️  Phenotype CSV empty: {sample_csv.name}"
-    except Exception as e:
-        return False, f"❌ Phenotype CSV unreadable: {e}"
+            return True, f"⚠️  Phenotype XLSX empty: {sample_xlsx.name}"
+    except Exception as e:  # noqa: BLE001
+        return False, f"❌ Phenotype XLSX unreadable: {e}"
 
 
 def validate_isles24_download(bids_root: Path) -> tuple[bool, list[str]]:
@@ -292,8 +294,8 @@ def validate_isles24_download(bids_root: Path) -> tuple[bool, list[str]]:
     else:
         messages.append("⚠️  No sample NIfTI files found for integrity check")
 
-    # Check 10: Phenotype CSV readability (LOW priority from audit)
-    messages.append("\n--- Phenotype CSV Check ---")
+    # Check 10: Phenotype XLSX readability (LOW priority from audit)
+    messages.append("\n--- Phenotype XLSX Check ---")
     pheno_passed, pheno_msg = check_phenotype_readable(phenotype)
     messages.append(pheno_msg)
     if not pheno_passed:
