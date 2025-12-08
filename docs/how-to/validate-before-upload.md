@@ -77,7 +77,7 @@ if item["t1w"] is not None:
 This package includes a validation module:
 
 ```python
-from arc_bids.validation import validate_arc_download
+from bids_hub.validation import validate_arc_download
 
 # Strict validation (default - no missing files allowed)
 result = validate_arc_download(Path("data/openneuro/ds004884"))
@@ -98,10 +98,10 @@ Or via CLI:
 
 ```bash
 # Strict validation
-arc-bids validate data/openneuro/ds004884
+bids-hub arc validate data/openneuro/ds004884
 
 # With 10% tolerance
-arc-bids validate data/openneuro/ds004884 --tolerance 0.1
+bids-hub arc validate data/openneuro/ds004884 --tolerance 0.1
 ```
 
 ---

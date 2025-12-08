@@ -156,12 +156,12 @@ Files to update:
 
 ## Success Criteria
 
-- [ ] `bids-hub arc validate` works
-- [ ] `bids-hub isles24 validate` works
-- [ ] Validation scripts deleted
-- [ ] `scripts/download_arc.sh` still works
-- [ ] `scripts/download_isles24.sh` created and works
-- [ ] Docs updated to use CLI
+- [x] `bids-hub arc validate` works
+- [x] `bids-hub isles24 validate` works
+- [x] Validation scripts deleted
+- [x] `scripts/download_arc.sh` still works
+- [x] `scripts/download_isles24.sh` created and works
+- [x] Docs updated to use CLI
 
 ---
 
