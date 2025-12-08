@@ -96,7 +96,7 @@ echo "Dataset location: ${TARGET_DIR}/train"
 echo ""
 echo "Next steps:"
 echo "  1. Verify: ls ${TARGET_DIR}/train"
-echo "  2. Upload: uv run arc-bids isles24 build ${TARGET_DIR}/train --no-dry-run"
+echo "  2. Upload: uv run bids-hub isles24 build ${TARGET_DIR}/train --no-dry-run"
 ```
 
 ---
@@ -163,7 +163,7 @@ data/zenodo/isles24/
 - [ ] Script downloads train.7z from Zenodo
 - [ ] Script extracts to target directory
 - [ ] 149 subject directories exist in train/raw_data/
-- [ ] Can run: `uv run arc-bids isles24 build data/zenodo/isles24/train --dry-run`
+- [ ] Can run: `uv run bids-hub isles24 build data/zenodo/isles24/train --dry-run`
 
 ---
 

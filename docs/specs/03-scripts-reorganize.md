@@ -7,6 +7,24 @@
 
 ---
 
+## ⚠️ CRITICAL DEPENDENCY
+
+**DO NOT execute this phase until Phase 02 is COMPLETE.**
+
+Phase 02 must port ALL validation logic from `scripts/validate_isles24_download.py` into the `bids_hub.validation` module BEFORE this phase deletes the script. Specifically:
+
+| Function | Must be ported to |
+|----------|-------------------|
+| `verify_md5()` | `validation/base.py` |
+| `check_zero_byte_files()` | `validation/base.py` |
+| `check_phenotype_readable()` | `validation/isles24.py` |
+| `EXPECTED_MD5` constant | `validation/isles24.py` |
+| `EXPECTED_MODALITIES` dict | `ISLES24_VALIDATION_CONFIG` |
+
+If Phase 02 is incomplete, deleting these scripts will **destroy critical functionality**.
+
+---
+
 ## Goal
 
 **DELETE** validation scripts that duplicate CLI functionality.

@@ -60,7 +60,7 @@ ls data/zenodo/isles24/train/derivatives/sub-stroke0001/ses-01/
 ### 2. Dry Run Build
 
 ```bash
-uv run arc-bids isles24 build data/zenodo/isles24/train --dry-run
+uv run bids-hub isles24 build data/zenodo/isles24/train --dry-run
 ```
 
 Expected output:
@@ -71,7 +71,7 @@ Expected output:
 
 ```bash
 # This will take a while (149 shards, each ~500MB-1GB)
-uv run arc-bids isles24 build data/zenodo/isles24/train --no-dry-run
+uv run bids-hub isles24 build data/zenodo/isles24/train --no-dry-run
 ```
 
 ### 4. Verify Upload

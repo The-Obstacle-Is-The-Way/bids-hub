@@ -18,10 +18,10 @@ Split `validation.py` into:
 
 ---
 
-## Current State
+## Current State (after Phase 01a rename)
 
 ```python
-# src/arc_bids/validation.py (387 lines)
+# src/bids_hub/validation.py (387 lines)
 
 # GENERIC (should be reusable)
 @dataclass
@@ -45,7 +45,7 @@ def validate_arc_download(): ...
 ## Target State
 
 ```
-src/arc_bids/validation/
+src/bids_hub/validation/
 ├── __init__.py          # Re-exports for backward compat
 ├── base.py              # Generic validation framework
 ├── arc.py               # ARC-specific
@@ -59,8 +59,8 @@ src/arc_bids/validation/
 ### Step 1: Create Directory Structure
 
 ```bash
-mkdir -p src/arc_bids/validation
-touch src/arc_bids/validation/__init__.py
+mkdir -p src/bids_hub/validation
+touch src/bids_hub/validation/__init__.py
 ```
 
 ### Step 2: Create `base.py`
@@ -160,6 +160,23 @@ def check_bids_validator(bids_root: Path) -> ValidationCheck | None: ...
 
 def check_file_exists(path: Path, name: str) -> ValidationCheck: ...
 
+# NEW: Archive integrity verification (ported from scripts/validate_isles24_download.py)
+def verify_md5(archive_path: Path, expected_md5: str) -> ValidationCheck:
+    """
+    Verify MD5 checksum of an archive file.
+
+    Useful for verifying Zenodo downloads before extraction.
+    Shows progress indicator for large files.
+
+    Args:
+        archive_path: Path to archive (e.g., train.7z)
+        expected_md5: Expected MD5 hash string
+
+    Returns:
+        ValidationCheck with pass/fail and computed hash
+    """
+    ...
+
 def check_count(
     name: str,
     actual: int,
@@ -232,7 +249,17 @@ def validate_arc_download(
 """ISLES24 dataset validation."""
 
 from pathlib import Path
-from .base import DatasetValidationConfig, ValidationResult, validate_dataset
+from .base import (
+    DatasetValidationConfig,
+    ValidationCheck,
+    ValidationResult,
+    validate_dataset,
+    verify_md5,
+)
+
+# MD5 checksum from Zenodo record 17652035 v7
+# (Ported from scripts/validate_isles24_download.py)
+ISLES24_ARCHIVE_MD5 = "4959a5dd2438d53e3c86d6858484e781"
 
 # From Zenodo v7 / ISLES24 challenge
 ISLES24_VALIDATION_CONFIG = DatasetValidationConfig(
@@ -262,7 +289,60 @@ ISLES24_VALIDATION_CONFIG = DatasetValidationConfig(
         "dwi": "*_dwi.nii.gz",
         "lesion": "*_lesion-msk.nii.gz",
     },
+    custom_checks=[check_phenotype_readable],  # ISLES24-specific
 )
+
+
+# NEW: Ported from scripts/validate_isles24_download.py
+def check_phenotype_readable(bids_root: Path) -> ValidationCheck:
+    """
+    Spot-check that phenotype XLSX files are readable.
+
+    Note: Zenodo v7 uses .xlsx files in phenotype/ directory.
+
+    Returns:
+        ValidationCheck with pass/fail status
+    """
+    phenotype_dir = bids_root / "phenotype"
+    if not phenotype_dir.exists():
+        return ValidationCheck(
+            name="phenotype_readable",
+            expected="phenotype/ exists",
+            actual="directory not found",
+            passed=True,  # Not a failure, may be optional
+            details="phenotype/ directory not found (skipping check)",
+        )
+
+    xlsx_files = list(phenotype_dir.rglob("*.xlsx"))
+    if not xlsx_files:
+        return ValidationCheck(
+            name="phenotype_readable",
+            expected="XLSX files",
+            actual="none found",
+            passed=True,
+            details="No XLSX files found in phenotype/ (may be OK)",
+        )
+
+    try:
+        import pandas as pd
+        sample_xlsx = xlsx_files[0]
+        df = pd.read_excel(sample_xlsx)
+        return ValidationCheck(
+            name="phenotype_readable",
+            expected="readable XLSX",
+            actual=f"{len(df)} rows",
+            passed=True,
+            details=f"Phenotype XLSX readable: {sample_xlsx.name}",
+        )
+    except Exception as e:
+        return ValidationCheck(
+            name="phenotype_readable",
+            expected="readable XLSX",
+            actual="unreadable",
+            passed=False,
+            details=f"Phenotype XLSX unreadable: {e}",
+        )
+
 
 def validate_isles24_download(
     bids_root: Path,
@@ -275,6 +355,11 @@ def validate_isles24_download(
         nifti_sample_size=nifti_sample_size,
         tolerance=tolerance,
     )
+
+
+def verify_isles24_archive(archive_path: Path) -> ValidationCheck:
+    """Verify MD5 of ISLES24 train.7z archive."""
+    return verify_md5(archive_path, ISLES24_ARCHIVE_MD5)
 ```
 
 ### Step 5: Update `__init__.py`
@@ -289,6 +374,7 @@ from .base import (
     DatasetValidationConfig,
     validate_dataset,
     check_zero_byte_files,  # Fast corruption detection
+    verify_md5,             # Archive integrity verification
 )
 from .arc import (
     ARC_VALIDATION_CONFIG,
@@ -297,7 +383,10 @@ from .arc import (
 )
 from .isles24 import (
     ISLES24_VALIDATION_CONFIG,
+    ISLES24_ARCHIVE_MD5,    # MD5 hash for train.7z
     validate_isles24_download,
+    verify_isles24_archive, # Convenience wrapper for MD5 check
+    check_phenotype_readable,
 )
 
 __all__ = [
@@ -307,27 +396,31 @@ __all__ = [
     "DatasetValidationConfig",
     "validate_dataset",
     "check_zero_byte_files",
+    "verify_md5",
     # ARC
     "ARC_VALIDATION_CONFIG",
     "EXPECTED_COUNTS",
     "validate_arc_download",
     # ISLES24
     "ISLES24_VALIDATION_CONFIG",
+    "ISLES24_ARCHIVE_MD5",
     "validate_isles24_download",
+    "verify_isles24_archive",
+    "check_phenotype_readable",
 ]
 ```
 
 ### Step 6: Update Imports
 
 Files to update:
-- `src/arc_bids/__init__.py`
-- `src/arc_bids/cli.py`
+- `src/bids_hub/__init__.py`
+- `src/bids_hub/cli.py`
 - `scripts/validate_download.py`
 
 ### Step 7: Delete Old File
 
 ```bash
-rm src/arc_bids/validation.py
+rm src/bids_hub/validation.py
 ```
 
 ---
@@ -351,11 +444,18 @@ def test_validation_result_all_passed_false(): ...
 def test_validation_result_summary_format(): ...
 def test_check_nifti_integrity_valid(): ...
 def test_check_nifti_integrity_corrupt(): ...
+def test_check_zero_byte_files_none(): ...
+def test_check_zero_byte_files_found(): ...
+def test_verify_md5_valid(): ...
+def test_verify_md5_mismatch(): ...
 
 # tests/validation/test_isles24.py
 def test_validate_isles24_download_valid(synthetic_isles24_root): ...
 def test_validate_isles24_download_missing_modality(): ...
 def test_validate_isles24_tolerance(): ...
+def test_check_phenotype_readable_valid(): ...
+def test_check_phenotype_readable_missing_dir(): ...
+def test_verify_isles24_archive(): ...
 ```
 
 ---
@@ -365,7 +465,7 @@ def test_validate_isles24_tolerance(): ...
 Add `isles24 validate` subcommand:
 
 ```python
-# src/arc_bids/cli.py
+# src/bids_hub/cli.py
 
 @isles_app.command("validate")
 def validate_isles(
@@ -387,12 +487,15 @@ def validate_isles(
 
 ## Success Criteria
 
-- [ ] `from arc_bids.validation import validate_arc_download` still works
-- [ ] `from arc_bids.validation import validate_isles24_download` works
-- [ ] `arc-bids validate` still works (ARC)
-- [ ] `arc-bids isles24 validate` works (NEW)
+- [ ] `from bids_hub.validation import validate_arc_download` works
+- [ ] `from bids_hub.validation import validate_isles24_download` works
+- [ ] `from bids_hub.validation import verify_md5` works
+- [ ] `from bids_hub.validation import check_phenotype_readable` works
+- [ ] `bids-hub arc validate` works
+- [ ] `bids-hub isles24 validate` works
 - [ ] All existing tests pass
 - [ ] New ISLES24 validation tests pass
+- [ ] **All logic from `scripts/validate_isles24_download.py` is ported** (critical for Phase 03)
 - [ ] mypy passes
 - [ ] ruff passes
 

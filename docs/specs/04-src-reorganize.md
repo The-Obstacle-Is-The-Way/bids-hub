@@ -8,17 +8,17 @@
 
 ## Goal
 
-Reorganize `src/arc_bids/` to clearly separate:
+Reorganize `src/bids_hub/` to clearly separate:
 - **Core** (generic, upstream candidate)
 - **Datasets** (per-dataset modules)
 - **Validation** (already done in Phase 02)
 
 ---
 
-## Current State
+## Current State (after Phase 01a rename)
 
 ```
-src/arc_bids/
+src/bids_hub/
 ├── __init__.py
 ├── core.py          # GENERIC - 288 lines
 ├── config.py        # ARC config - minor
@@ -37,7 +37,7 @@ src/arc_bids/
 ## Target State
 
 ```
-src/arc_bids/
+src/bids_hub/
 ├── __init__.py              # Public API exports
 ├── cli.py                   # CLI entry point
 │
@@ -66,10 +66,10 @@ src/arc_bids/
 ### Step 1: Create Core Subpackage
 
 ```bash
-mkdir -p src/arc_bids/core
+mkdir -p src/bids_hub/core
 ```
 
-**`src/arc_bids/core/__init__.py`**
+**`src/bids_hub/core/__init__.py`**
 
 ```python
 """Core BIDS→HF conversion utilities (generic, upstream candidate)."""
@@ -84,7 +84,7 @@ __all__ = [
 ]
 ```
 
-**`src/arc_bids/core/config.py`**
+**`src/bids_hub/core/config.py`**
 
 ```python
 """Configuration dataclasses for BIDS→HF conversion."""
@@ -101,7 +101,7 @@ class DatasetBuilderConfig:
     dry_run: bool = False
 ```
 
-**`src/arc_bids/core/builder.py`**
+**`src/bids_hub/core/builder.py`**
 
 ```python
 """Core build and push functions."""
@@ -112,7 +112,7 @@ class DatasetBuilderConfig:
 # - push_dataset_to_hub()
 ```
 
-**`src/arc_bids/core/utils.py`**
+**`src/bids_hub/core/utils.py`**
 
 ```python
 """Generic file discovery utilities."""
@@ -141,10 +141,10 @@ def find_all_niftis(search_dir: Path, pattern: str) -> list[str]:
 ### Step 2: Create Datasets Subpackage
 
 ```bash
-mkdir -p src/arc_bids/datasets
+mkdir -p src/bids_hub/datasets
 ```
 
-**`src/arc_bids/datasets/__init__.py`**
+**`src/bids_hub/datasets/__init__.py`**
 
 ```python
 """Dataset-specific modules."""
@@ -164,18 +164,18 @@ __all__ = [
 ]
 ```
 
-**`src/arc_bids/datasets/arc.py`**
-- Move from `src/arc_bids/arc.py`
+**`src/bids_hub/datasets/arc.py`**
+- Move from `src/bids_hub/arc.py`
 - Update imports: `from ..core import ...`
 
-**`src/arc_bids/datasets/isles24.py`**
-- Move from `src/arc_bids/isles24.py`
+**`src/bids_hub/datasets/isles24.py`**
+- Move from `src/bids_hub/isles24.py`
 - Update imports: `from ..core import ...`
 
 ### Step 3: Update Root `__init__.py`
 
 ```python
-"""arc_bids - Upload neuroimaging datasets to HuggingFace Hub."""
+"""bids_hub - Upload neuroimaging datasets to HuggingFace Hub."""
 
 # Core (generic)
 from .core import DatasetBuilderConfig, build_hf_dataset, push_dataset_to_hub
@@ -219,7 +219,7 @@ __all__ = [
 ### Step 4: Update CLI
 
 ```python
-# src/arc_bids/cli.py
+# src/bids_hub/cli.py
 
 from .datasets.arc import build_and_push_arc
 from .datasets.isles24 import build_and_push_isles24
@@ -230,10 +230,10 @@ from .validation.isles24 import validate_isles24_download
 ### Step 5: Delete Old Files
 
 ```bash
-rm src/arc_bids/core.py
-rm src/arc_bids/config.py
-rm src/arc_bids/arc.py
-rm src/arc_bids/isles24.py
+rm src/bids_hub/core.py
+rm src/bids_hub/config.py
+rm src/bids_hub/arc.py
+rm src/bids_hub/isles24.py
 ```
 
 ### Step 6: Update Tests
@@ -263,10 +263,10 @@ tests/
 The root `__init__.py` re-exports everything, so existing code continues to work:
 
 ```python
-# These still work:
-from arc_bids import build_hf_dataset, DatasetBuilderConfig
-from arc_bids import build_arc_file_table, get_arc_features
-from arc_bids import validate_arc_download
+# These work:
+from bids_hub import build_hf_dataset, DatasetBuilderConfig
+from bids_hub import build_arc_file_table, get_arc_features
+from bids_hub import validate_arc_download
 ```
 
 ---
@@ -274,11 +274,11 @@ from arc_bids import validate_arc_download
 ## Success Criteria
 
 - [ ] All imports in `__init__.py` work
-- [ ] CLI still works
+- [ ] `bids-hub arc build` CLI works
+- [ ] `bids-hub isles24 build` CLI works
 - [ ] All tests pass
 - [ ] mypy passes
 - [ ] ruff passes
-- [ ] `from arc_bids import ...` backward compatible
 
 ---
 
