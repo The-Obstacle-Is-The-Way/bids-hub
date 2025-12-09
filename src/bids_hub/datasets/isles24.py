@@ -117,7 +117,7 @@ def _load_phenotype_data(phenotype_dir: Path, subject_id: str) -> dict[str, Any]
                                 else:
                                     meta[field_name] = float(val)
             except Exception as e:
-                logger.debug("Error reading %s: %s", xlsx_file, e)
+                logger.warning("Failed to read phenotype file %s: %s", xlsx_file, e)
                 continue
 
     return meta
