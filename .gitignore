@@ -209,8 +209,14 @@ __marimo__/
 # ============================================
 # Neuroimaging / BIDS / NIfTI specific
 # ============================================
-data/
-openneuro/
+# Ignore data contents but keep READMEs for contributor guidance
+data/**
+!data/
+!data/README.md
+!data/openneuro/
+!data/openneuro/README.md
+!data/zenodo/
+!data/zenodo/README.md
 ds*/
 *.nii
 *.nii.gz
